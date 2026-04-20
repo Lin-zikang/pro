@@ -1388,6 +1388,14 @@ function cloneMove(move) {
   return { row: move.row, col: move.col };
 }
 
+function cancelPendingAIActions() {
+  aiRequestId += 1;
+  if (aiWorker) {
+    destroyAIWorker();
+  }
+  aiThinking = false;
+}
+
 function pushHistory() {
   history.push({
     board: deepCopyBoard(board),
@@ -1397,11 +1405,11 @@ function pushHistory() {
 }
 
 function restoreState(state) {
+  cancelPendingAIActions();
   board = deepCopyBoard(state.board);
   currentPlayer = state.currentPlayer;
   gameOver = state.gameOver;
   isProcessingMove = false;
-  aiThinking = false;
   renderBoard();
   highlightValidMoves();
   updateStatus();
@@ -1631,6 +1639,7 @@ function endGame() {
 
 /** ====== 初始化与重置 ====== */
 function initBoard() {
+  cancelPendingAIActions();
   board = Array.from({ length: BOARD_SIZE }, () => Array(BOARD_SIZE).fill(0));
   board[3][3] = -1;
   board[3][4] = 1;
@@ -1660,18 +1669,28 @@ function refreshPage() {
 }
 
 /** ====== 悔棋逻辑 ====== */
-function undoOnce() {
-  if (history.length === 0) return false;
-  const state = history.pop();
+function restoreHistoryAt(index) {
+  if (index < 0 || index >= history.length) return false;
+  const state = history[index];
+  history = history.slice(0, index);
   restoreState(state);
   return true;
+}
+
+function findLastHumanTurnHistoryIndex() {
+  for (let i = history.length - 1; i >= 0; i--) {
+    if (history[i].currentPlayer !== aiPlays) {
+      return i;
+    }
+  }
+  return -1;
 }
 
 function undoMove() {
   if (gameOver || isProcessingMove || aiThinking) return;
 
   if (mode === 'pvp') {
-    if (undoOnce()) {
+    if (restoreHistoryAt(history.length - 1)) {
       updateStatus('已悔棋一步');
       highlightValidMoves();
     }
@@ -1680,15 +1699,10 @@ function undoMove() {
 
   if (undoLocked) return;
 
-  let undone = false;
-  if (currentPlayer === aiPlays) {
-    undone = undoOnce();
-  } else {
-    undone = undoOnce();
-    if (undone) undone = undoOnce();
-  }
+  const targetIndex = findLastHumanTurnHistoryIndex();
+  if (targetIndex === -1) return;
 
-  if (undone) {
+  if (restoreHistoryAt(targetIndex)) {
     undoLocked = true;
     updateStatus('已回到你上一次落子前');
     highlightValidMoves();
@@ -2312,5 +2326,7 @@ initBoard();
 </script>
 <script defer src="https://static.cloudflareinsights.com/beacon.min.js/v8c78df7c7c0f484497ecbca7046644da1771523124516" integrity="sha512-8DS7rgIrAmghBFwoOTujcf6D9rXvH8xm8JQ1Ja01h9QX8EzXldiszufYa4IFfKdLUKTTrnSFXLDkUEOTrZQ8Qg==" data-cf-beacon='{"version":"2024.11.0","token":"7939e04a4baf43c8b86a560f74aac60e","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
 <script defer src="https://static.cloudflareinsights.com/beacon.min.js/v8c78df7c7c0f484497ecbca7046644da1771523124516" integrity="sha512-8DS7rgIrAmghBFwoOTujcf6D9rXvH8xm8JQ1Ja01h9QX8EzXldiszufYa4IFfKdLUKTTrnSFXLDkUEOTrZQ8Qg==" data-cf-beacon='{"version":"2024.11.0","token":"7939e04a4baf43c8b86a560f74aac60e","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v8c78df7c7c0f484497ecbca7046644da1771523124516" integrity="sha512-8DS7rgIrAmghBFwoOTujcf6D9rXvH8xm8JQ1Ja01h9QX8EzXldiszufYa4IFfKdLUKTTrnSFXLDkUEOTrZQ8Qg==" data-cf-beacon='{"version":"2024.11.0","token":"7939e04a4baf43c8b86a560f74aac60e","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v8c78df7c7c0f484497ecbca7046644da1771523124516" integrity="sha512-8DS7rgIrAmghBFwoOTujcf6D9rXvH8xm8JQ1Ja01h9QX8EzXldiszufYa4IFfKdLUKTTrnSFXLDkUEOTrZQ8Qg==" data-cf-beacon='{"version":"2024.11.0","token":"714420ba517c46f1a8fc9efa6e860813","r":1,"server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
 </body>
 </html>
