@@ -1,2332 +1,1667 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>黑白棋Pro</title>
-<link
-  rel="icon"
-  href="https://user-assets.sxlcdn.com/images/1209238/FlWuslNmGTHt1EipxUtq2GI6zqnN.png?imageMogr2/strip/auto-orient/thumbnail/1200x9000%3E/quality/90!/format/png"
-  type="image/png"
-/>
-<style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>双人中国象棋</title>
+  <style>
     :root {
-        --cell-size: min(10vw, 50px);
-        --board-padding: min(2vw, 10px);
-        --shadow: 0 4px 20px rgba(0,0,0,0.2);
-        --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      color-scheme: light;
+      --bg-1: #f7f0e2;
+      --bg-2: #efe2ca;
+      --bg-3: #dcc5a1;
+      --ink: #473223;
+      --line: #2a2017;
+      --line-soft: rgba(47, 36, 26, 0.12);
+      --panel-1: rgba(255, 250, 241, 0.9);
+      --panel-2: rgba(247, 234, 205, 0.9);
+      --success: #2f7e58;
+      --warn: #b14f2c;
+      --draw: #8b6a3f;
+      --shadow-lg: 0 28px 60px rgba(83, 53, 27, 0.18);
+      --shadow-md: 0 16px 30px rgba(73, 46, 23, 0.14);
+      --radius-xl: 28px;
+      --radius-lg: 20px;
+      --transition: 180ms ease;
+      --board-size: min(92vw, 780px);
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      font-family: "Noto Serif SC", "Source Han Serif SC", "Songti SC", "STSong", "KaiTi", serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top, rgba(255,255,255,0.72), transparent 38%),
+        radial-gradient(circle at 12% 20%, rgba(255,255,255,0.35), transparent 16%),
+        linear-gradient(165deg, #f8f2e7 0%, #f2e4cb 42%, #ead6b2 100%);
+      -webkit-tap-highlight-color: transparent;
     }
 
     body {
-        font-family: 'Arial', sans-serif;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        min-height: 100vh;
-        margin: 0;
-        background: linear-gradient(135deg, #f0f0f0 0%, #d0d0d0 100%);
-        padding: 10px;
-        box-sizing: border-box;
+      display: flex;
+      justify-content: center;
+      padding:
+        max(20px, env(safe-area-inset-top))
+        max(14px, env(safe-area-inset-right))
+        max(20px, env(safe-area-inset-bottom))
+        max(14px, env(safe-area-inset-left));
     }
 
-    .game-container {
-        text-align: center;
-        background: white;
-        padding: clamp(12px, 4vw, 24px);
-        border-radius: 15px;
-        box-shadow: var(--shadow);
-        max-width: 430px;
-        width: 100%;
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background:
+        linear-gradient(transparent 0%, rgba(130, 92, 53, 0.05) 100%),
+        repeating-linear-gradient(
+          115deg,
+          rgba(255,255,255,0.06) 0px,
+          rgba(255,255,255,0.06) 2px,
+          transparent 2px,
+          transparent 8px
+        );
+      opacity: 0.46;
+      mix-blend-mode: soft-light;
+    }
+
+    .app {
+      position: relative;
+      width: min(1260px, 100%);
+      display: grid;
+      gap: 18px;
+      align-items: start;
+    }
+
+    .board-card,
+    .panel {
+      position: relative;
+      overflow: hidden;
+      border-radius: var(--radius-xl);
+      border: 1px solid rgba(123, 83, 46, 0.14);
+      box-shadow: var(--shadow-lg);
+      backdrop-filter: blur(10px);
+    }
+
+    .board-card::before,
+    .panel::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background:
+        radial-gradient(circle at top left, rgba(255,255,255,0.5), transparent 32%),
+        linear-gradient(180deg, rgba(255,255,255,0.14), transparent 30%);
+      opacity: 0.9;
+    }
+
+    .board-card {
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.62), rgba(255,255,255,0.2)),
+        linear-gradient(150deg, rgba(255,246,231,0.92), rgba(239,224,195,0.9));
+      padding: 18px;
+    }
+
+    .panel {
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.72), rgba(255,255,255,0.24)),
+        linear-gradient(160deg, var(--panel-1), var(--panel-2));
+      padding: 18px;
+    }
+
+    .title-wrap {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px 16px;
+      margin-bottom: 16px;
+      position: relative;
+      z-index: 1;
     }
 
     h1 {
-        margin: 0 0 10px;
-        font-size: clamp(1.5rem, 4vw, 2rem);
-        color: #333;
-        text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+      margin: 0;
+      font-size: clamp(1.7rem, 2.2vw + 1rem, 2.55rem);
+      letter-spacing: 0.1em;
+      color: #714523;
+      text-shadow: 0 2px 0 rgba(255,255,255,0.5);
     }
 
-    /* ===== 顶部模式按钮区域 ===== */
-    .top-controls {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-        margin-bottom: 6px;
-        align-items: stretch;
+    .subtitle {
+      margin: 6px 0 0;
+      color: rgba(90, 63, 41, 0.84);
+      font-size: 0.98rem;
+      line-height: 1.6;
     }
 
-    .mode-group {
-        display: flex;
-        flex-direction: column;
-        gap: 4px;
-        align-items: center;
-        transition: opacity 0.25s ease;
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      border-radius: 999px;
+      background: rgba(255, 252, 246, 0.72);
+      border: 1px solid rgba(121, 82, 45, 0.12);
+      color: #72461f;
+      box-shadow: 0 10px 22px rgba(116, 78, 42, 0.08);
+      font-size: 0.95rem;
+      white-space: nowrap;
+      position: relative;
+      z-index: 1;
     }
 
-    .mode-group-label {
-        font-size: 13px;
-        letter-spacing: 1px;
-        text-transform: uppercase;
-        color: #666;
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: #d1a15e;
+      box-shadow: 0 0 0 5px rgba(209, 161, 94, 0.16);
     }
 
-    .btn-group {
-        display: flex;
-        gap: 6px;
-        justify-content: center;
-        flex-wrap: nowrap;
-        width: 100%;
+    .board-shell {
+      position: relative;
+      width: min(100%, var(--board-size));
+      margin: 0 auto;
+      z-index: 1;
     }
 
-    .toggle-btn {
-        flex: 1;
-        padding: 6px 8px;
-        font-size: 13px;
-        border-radius: 999px;
-        border: 1px solid rgba(0,0,0,0.08);
-        background: linear-gradient(135deg, #f7f7f7, #eaeaea);
-        box-shadow: 0 1px 4px rgba(0,0,0,0.12);
-        cursor: pointer;
-        position: relative;
-        overflow: hidden;
-        transition: var(--transition);
-        font-weight: 500;
-        color: #444;
+    .board-frame {
+      position: relative;
+      aspect-ratio: 9 / 10;
+      padding: 1.9%;
+      border-radius: 10px;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.2), rgba(255,255,255,0.04)),
+        linear-gradient(90deg, #7e4f22 0%, #d79b52 5%, #f4cf83 14%, #c1803a 26%, #edc16f 48%, #b06b33 70%, #efc673 87%, #8a541f 100%);
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.44),
+        inset 0 -3px 6px rgba(88, 55, 27, 0.2),
+        0 14px 26px rgba(92, 58, 29, 0.16);
     }
 
-    .toggle-btn::before {
-        content: "";
-        position: absolute;
-        inset: 0;
-        background: radial-gradient(circle at 0 0, rgba(255,255,255,0.9), transparent 55%);
-        opacity: 0;
-        transition: opacity 0.35s ease;
-        pointer-events: none;
+    .board-frame::before {
+      content: "";
+      position: absolute;
+      inset: 4px;
+      border-radius: 7px;
+      box-shadow:
+        inset 0 0 0 1px rgba(255,255,255,0.24),
+        inset 0 0 0 2px rgba(93, 58, 29, 0.18);
+      pointer-events: none;
     }
 
-    .toggle-btn:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 4px 10px rgba(0,0,0,0.18);
+    .board-surface {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      border-radius: 4px;
+      overflow: hidden;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.16), rgba(116, 79, 43, 0.04)),
+        repeating-linear-gradient(
+          90deg,
+          rgba(255,255,255,0.10) 0px,
+          rgba(255,255,255,0.10) 2px,
+          rgba(207,166,108,0.10) 2px,
+          rgba(207,166,108,0.10) 8px,
+          rgba(157,110,57,0.05) 8px,
+          rgba(157,110,57,0.05) 13px,
+          rgba(244,223,180,0.07) 13px,
+          rgba(244,223,180,0.07) 20px
+        ),
+        linear-gradient(90deg, #efcf93 0%, #f6dca6 18%, #ebcb8f 36%, #f2d79f 58%, #e5c487 78%, #f0d59a 100%);
+      box-shadow:
+        inset 0 0 0 1px rgba(56, 38, 22, 0.42),
+        inset 0 8px 14px rgba(255,255,255,0.11),
+        inset 0 -12px 14px rgba(91, 58, 28, 0.06);
     }
 
-    .toggle-btn:active {
-        transform: translateY(0);
-        box-shadow: 0 1px 4px rgba(0,0,0,0.16);
+    .board-surface::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background:
+        linear-gradient(90deg, rgba(97, 61, 29, 0.03), transparent 14%, transparent 86%, rgba(97, 61, 29, 0.03)),
+        linear-gradient(180deg, rgba(255,255,255,0.08), transparent 18%, transparent 82%, rgba(72, 48, 22, 0.05));
+      opacity: 0.96;
     }
 
-    .toggle-btn.active {
-        background: linear-gradient(135deg, #4CAF50, #2e9dff);
-        color: #fff;
-        box-shadow: 0 0 0 1px rgba(255,255,255,0.5), 0 6px 18px rgba(0,150,200,0.55);
-        transform: translateY(-1px) scale(1.02);
+    .board-svg,
+    .cells {
+      position: absolute;
+      inset: 0;
     }
 
-    .toggle-btn.active::before {
-        opacity: 1;
+    .board-svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+      shape-rendering: geometricPrecision;
+      z-index: 0;
     }
 
-    .mode-group.disabled {
-        opacity: 0.3;
-    }
-
-    .mode-group.disabled .toggle-btn {
-        pointer-events: none;
-    }
-
-    .scores {
-        display: flex;
-        justify-content: center;
-        gap: 16px;
-        margin: 4px 0;
-        font-size: clamp(0.9rem, 2.5vw, 1.05rem);
-    }
-
-    .score {
-        padding: 4px 8px;
-        border-radius: 5px;
-        background: rgba(0,0,0,0.05);
-        transition: var(--transition);
-    }
-
-    .black-score {
-        color: #000;
-        font-weight: bold;
-    }
-
-    .white-score {
-        color: #fff;
-        background: #000;
-        font-weight: bold;
-    }
-
-    .score.highlight {
-        box-shadow: 0 0 12px rgba(255,215,0,0.9), 0 0 26px rgba(255,215,0,0.8);
-        transform: scale(1.05);
-        animation: scoreGlow 1s ease-in-out infinite alternate;
-    }
-
-    @keyframes scoreGlow {
-        0% { filter: brightness(1); }
-        100% { filter: brightness(1.25); }
-    }
-
-    .status {
-        font-size: clamp(1rem, 3vw, 1.1rem);
-        margin: 6px 0;
-        color: #333;
-        font-weight: bold;
-        min-height: 1.2em;
-    }
-
-    .player {
-        color: #333;
-    }
-
-    .current {
-        color: #1e90ff;
-        text-shadow: 0 0 5px rgba(30,144,255,0.5);
-    }
-
-    .winner {
-        color: #ff4500;
-        font-size: clamp(1.1rem, 3.8vw, 1.3rem);
-        animation: celebrate 0.5s ease-in-out infinite alternate;
-    }
-
-    .winner-diff {
-        display: inline-block;
-        margin-left: 6px;
-        font-size: 0.85rem;
-        color: #555;
-    }
-
-    @keyframes celebrate {
-        0% { transform: scale(1); text-shadow: 0 0 5px rgba(255,69,0,0.5); }
-        100% { transform: scale(1.05); text-shadow: 0 0 15px rgba(255,69,0,0.8); }
-    }
-
-    .board {
-        display: grid;
-        grid-template-columns: repeat(8, 1fr);
-        grid-template-rows: repeat(8, 1fr);
-        gap: 0.2vmin;
-        background: linear-gradient(45deg, #228B22, #006400);
-        padding: var(--board-padding);
-        border-radius: 10px;
-        margin: 8px auto;
-        width: min(86vw, 400px);
-        aspect-ratio: 1;
-        box-shadow: inset 0 0 20px rgba(0,0,0,0.3), var(--shadow);
-        position: relative;
-        overflow: hidden;
-        transition: box-shadow 0.35s ease, transform 0.35s ease, filter 0.35s ease;
-    }
-
-    .board::before {
-        content: '';
-        position: absolute; inset: 0;
-        background: repeating-linear-gradient(
-                0deg,
-                transparent,
-                transparent 2px,
-                rgba(0,0,0,0.1) 2px,
-                rgba(0,0,0,0.1) 3px
-            ),
-            repeating-linear-gradient(
-                90deg,
-                transparent,
-                transparent 2px,
-                rgba(0,0,0,0.1) 2px,
-                rgba(0,0,0,0.1) 3px
-            );
-        pointer-events: none;
-        z-index: 1;
-    }
-
-    .board.game-over .cell {
-        cursor: not-allowed;
-    }
-
-    .board.game-over {
-        filter: brightness(0.98);
-        box-shadow:
-          0 0 0 2px rgba(0,0,0,0.35),
-          0 10px 30px rgba(0,0,0,0.5),
-          inset 0 0 25px rgba(0,0,0,0.4);
-    }
-
-    .board.thinking {
-        box-shadow:
-            0 0 0 2px rgba(30,144,255,0.6),
-            0 0 25px rgba(30,144,255,0.8),
-            inset 0 0 20px rgba(0,0,0,0.3);
-        animation: boardGlow 1.2s ease-in-out infinite alternate;
-    }
-
-    @keyframes boardGlow {
-        0% { transform: translateY(0); }
-        100% { transform: translateY(-2px); }
+    .cells {
+      display: grid;
+      grid-template-columns: repeat(9, 1fr);
+      grid-template-rows: repeat(10, 1fr);
+      z-index: 1;
     }
 
     .cell {
-        width: 100%; height: 100%;
-        background: linear-gradient(145deg, #A0522D, #8B4513);
-        border-radius: 8px;
-        display: flex; justify-content: center; align-items: center;
-        cursor: pointer; position: relative; transition: var(--transition);
-        z-index: 2; box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
+      position: relative;
+      border: none;
+      padding: 0;
+      background: transparent;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      touch-action: manipulation;
+      user-select: none;
+      outline: none;
     }
 
-    .cell:hover:not(.game-over):not(.valid) {
-        transform: scale(1.02) rotate(1deg);
-        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    .cell::before,
+    .cell::after {
+      content: "";
+      position: absolute;
+      transition: opacity var(--transition), transform var(--transition), box-shadow var(--transition);
+      pointer-events: none;
+      opacity: 0;
     }
 
-    .cell.valid {
-        background: linear-gradient(145deg, rgba(0,255,0,0.2), rgba(0,150,0,0.1));
-        border: 2px solid rgba(0,255,0,0.6);
-        box-shadow: 0 0 20px rgba(0,255,0,0.4), inset 0 0 10px rgba(0,255,0,0.1);
-        animation: glow 1.5s ease-in-out infinite alternate;
+    .cell.legal.empty::before {
+      width: 14%;
+      aspect-ratio: 1;
+      border-radius: 50%;
+      background: rgba(57, 135, 90, 0.92);
+      box-shadow:
+        0 0 0 10px rgba(57, 135, 90, 0.14),
+        0 0 12px rgba(57, 135, 90, 0.2);
+      opacity: 1;
+      transform: scale(1);
     }
 
-    @keyframes glow {
-        0% { box-shadow: 0 0 10px rgba(0,255,0,0.3), inset 0 0 5px rgba(0,255,0,0.05); }
-        100% { box-shadow: 0 0 30px rgba(0,255,0,0.6), inset 0 0 15px rgba(0,255,0,0.15); }
+    .cell.legal.occupied::before {
+      inset: 13%;
+      border-radius: 50%;
+      border: 3px solid rgba(185, 81, 44, 0.86);
+      box-shadow:
+        0 0 0 8px rgba(185, 81, 44, 0.12),
+        0 0 16px rgba(185, 81, 44, 0.16);
+      opacity: 1;
+    }
+
+    .cell.selected::after,
+    .cell.last-from::after,
+    .cell.last-to::after {
+      inset: 11%;
+      border-radius: 50%;
+      opacity: 1;
+    }
+
+    .cell.selected::after {
+      border: 3px solid rgba(57, 98, 170, 0.9);
+      box-shadow:
+        0 0 0 8px rgba(57, 98, 170, 0.12),
+        0 0 15px rgba(57, 98, 170, 0.16);
+    }
+
+    .cell.last-from::after,
+    .cell.last-to::after {
+      border: 2px dashed rgba(133, 98, 53, 0.76);
+      box-shadow: 0 0 0 7px rgba(133, 98, 53, 0.08);
     }
 
     .piece {
-        width: 85%; height: 85%; border-radius: 50%;
-        position: absolute; transition: var(--transition);
-        box-shadow: var(--shadow), inset 0 2px 4px rgba(255,255,255,0.3);
-        background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.1) 0%, transparent 50%);
+      position: relative;
+      width: 86%;
+      max-width: 76px;
+      aspect-ratio: 1;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: "STKaiti", "Kaiti SC", "KaiTi", "Songti SC", serif;
+      font-weight: 700;
+      font-size: clamp(1.18rem, 1vw + 0.98rem, 1.92rem);
+      line-height: 1;
+      letter-spacing: 0.02em;
+      border: 1px solid rgba(119, 71, 31, 0.82);
+      transform: translateY(-1px) translateZ(0);
+      text-shadow:
+        0 1px 0 rgba(255, 244, 217, 0.78),
+        0 -1px 0 rgba(120, 67, 27, 0.14),
+        0 0 1px rgba(94, 52, 24, 0.18);
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.88),
+        inset 0 2px 4px rgba(255,255,255,0.28),
+        inset 0 -5px 8px rgba(138, 83, 37, 0.26),
+        inset 0 -12px 18px rgba(107, 62, 25, 0.2),
+        0 2px 0 rgba(120, 73, 34, 0.78),
+        0 5px 0 rgba(86, 51, 24, 0.68),
+        0 9px 12px rgba(59, 33, 14, 0.28);
+      isolation: isolate;
+      filter: drop-shadow(1px 1px 0 rgba(255,255,255,0.08));
+      -webkit-text-stroke: 0.22px rgba(107, 61, 30, 0.22);
+      transition:
+        transform var(--transition),
+        box-shadow var(--transition),
+        filter var(--transition);
+    }
+
+    .piece::before,
+    .piece::after {
+      content: "";
+      position: absolute;
+      border-radius: 50%;
+      pointer-events: none;
+    }
+
+    .piece::before {
+      inset: 7.5%;
+      border: 2px solid rgba(144, 88, 38, 0.9);
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.4),
+        inset 0 -3px 5px rgba(116, 65, 24, 0.16);
+      z-index: -1;
+    }
+
+    .piece::after {
+      inset: 14%;
+      background:
+        radial-gradient(circle at 35% 24%, rgba(255,255,255,0.54), transparent 30%),
+        radial-gradient(circle at 48% 44%, rgba(255, 224, 164, 0.46), rgba(255, 224, 164, 0.08) 55%, transparent 72%);
+      opacity: 0.98;
+      filter: blur(0.4px);
+      z-index: -1;
+    }
+
+    .piece.red,
+    .piece.black {
+      background:
+        radial-gradient(circle at 28% 22%, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.4) 16%, transparent 29%),
+        radial-gradient(circle at 50% 36%, #f8dea9 0%, #efc56e 48%, #d78f43 76%, #9b5928 100%);
+    }
+
+    .piece.red {
+      color: #ba4a31;
     }
 
     .piece.black {
-        background: linear-gradient(145deg, #000, #333);
-        box-shadow: var(--shadow), 0 0 10px rgba(0,0,0,0.5), inset 0 2px 4px rgba(255,255,255,0.1);
+      color: #202224;
     }
 
-    .piece.white {
-        background: linear-gradient(145deg, #fff, #f0f0f0);
-        box-shadow: var(--shadow), 0 0 10px rgba(255,255,255,0.5), inset 0 -2px 4px rgba(0,0,0,0.1);
+    .cell:hover .piece,
+    .cell:focus-visible .piece,
+    .cell.selected .piece {
+      transform: translateY(-3px);
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.9),
+        inset 0 2px 4px rgba(255,255,255,0.3),
+        inset 0 -6px 8px rgba(138, 83, 37, 0.28),
+        inset 0 -14px 18px rgba(107, 62, 25, 0.22),
+        0 3px 0 rgba(120, 73, 34, 0.8),
+        0 7px 0 rgba(86, 51, 24, 0.72),
+        0 13px 16px rgba(59, 33, 14, 0.3);
+      filter: saturate(1.04) brightness(1.02) drop-shadow(1px 1px 0 rgba(255,255,255,0.08));
     }
 
-    .piece.flip { animation: flip 0.6s ease-in-out; }
-
-    @keyframes flip {
-        0% { transform: rotateY(0deg) scale(1); opacity: 1; }
-        50% { transform: rotateY(90deg) scale(0.8); opacity: 0.5; }
-        100% { transform: rotateY(180deg) scale(1); opacity: 1; }
+    .coordinates {
+      display: none;
     }
 
-    .piece.appear { animation: appear 0.4s ease-out; }
-
-    @keyframes appear {
-        0% { transform: scale(0) rotate(180deg); opacity: 0; }
-        50% { transform: scale(1.2) rotate(0deg); opacity: 0.7; }
-        100% { transform: scale(1) rotate(0deg); opacity: 1; }
+    .panel-grid {
+      display: grid;
+      gap: 14px;
+      position: relative;
+      z-index: 1;
     }
 
-    .bottom-bar {
-        margin-top: 8px;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 4px;
+    .panel-section {
+      background: rgba(255, 251, 244, 0.56);
+      border: 1px solid rgba(132, 92, 52, 0.1);
+      border-radius: var(--radius-lg);
+      padding: 14px;
+      box-shadow: var(--shadow-md);
     }
 
-    .btn-row {
-        display: flex;
-        gap: 8px;
-        justify-content: center;
+    .panel-title {
+      margin: 0 0 10px;
+      color: #7a4b24;
+      font-size: 1rem;
+      letter-spacing: 0.08em;
     }
 
-    button {
-        padding: 8px 16px;
-        font-size: 14px;
-        background: linear-gradient(145deg, #4CAF50, #45a049);
-        color: white;
-        border: none;
-        border-radius: 10px;
-        cursor: pointer;
-        margin: 0;
-        box-shadow: var(--shadow);
-        transition: var(--transition);
+    .turn-box {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
     }
 
-    button:hover {
-        background: linear-gradient(145deg, #45a049, #3d8b40);
-        transform: translateY(-2px);
-        box-shadow: 0 6px 25px rgba(76,175,80,0.4);
+    .turn-side {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 11px 13px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.62);
+      border: 1px solid rgba(124, 84, 45, 0.1);
+      color: #6d4424;
+      min-width: 154px;
+      box-shadow: 0 8px 18px rgba(119, 78, 42, 0.08);
     }
 
-    button:active {
-        transform: translateY(0);
+    .badge-piece {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      border: 1px solid rgba(125, 84, 48, 0.18);
+      background:
+        radial-gradient(circle at 32% 28%, rgba(255,255,255,0.84), transparent 28%),
+        radial-gradient(circle at 50% 42%, #fffaf1 0%, #ebd8bb 64%, #c69564 100%);
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.75),
+        0 8px 12px rgba(132, 91, 54, 0.08);
     }
 
-    button:disabled {
-        opacity: 0.6;
-        cursor: not-allowed;
-        filter: grayscale(0.2);
+    .badge-piece.red { color: #ba4a31; }
+    .badge-piece.black { color: #202224; }
+
+    .status-text {
+      margin: 0;
+      line-height: 1.76;
+      color: rgba(85, 58, 39, 0.92);
     }
 
-    .foot { margin-top: 6px; opacity: 0.8; font-size: 12px; }
-
-    @keyframes shake {
-        0%, 100% { transform: translateX(0); }
-        25% { transform: translateX(-5px); }
-        75% { transform: translateX(5px); }
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
     }
 
-    @media (max-width: 480px) {
-        .game-container {
-            padding: 10px;
-            border-radius: 12px;
-        }
-        .btn-group {
-            gap: 4px;
-        }
-        .toggle-btn {
-            padding: 5px 6px;
-            font-size: 12px;
-        }
-        .btn-row button {
-            padding: 7px 10px;
-            font-size: 13px;
-        }
+    button.ctrl {
+      border: none;
+      cursor: pointer;
+      border-radius: 16px;
+      padding: 13px 14px;
+      font: inherit;
+      font-weight: 700;
+      color: #fff9f1;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.2), rgba(255,255,255,0.06)),
+        linear-gradient(145deg, #d09a61, #a96e3e 58%, #89542f);
+      box-shadow:
+        0 14px 24px rgba(126, 81, 43, 0.18),
+        inset 0 1px 0 rgba(255,255,255,0.28);
+      transition: transform var(--transition), filter var(--transition), box-shadow var(--transition), opacity var(--transition);
     }
-</style>
+
+    button.ctrl:hover,
+    button.ctrl:focus-visible {
+      transform: translateY(-1px);
+      filter: brightness(1.04);
+      box-shadow:
+        0 18px 28px rgba(126, 81, 43, 0.22),
+        inset 0 1px 0 rgba(255,255,255,0.32);
+      outline: none;
+    }
+
+    button.ctrl.secondary {
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.18), rgba(255,255,255,0.05)),
+        linear-gradient(145deg, #977557, #7a5a42 62%, #664834);
+    }
+
+    button.ctrl:disabled {
+      cursor: not-allowed;
+      opacity: 0.46;
+      filter: grayscale(0.1);
+      transform: none;
+      box-shadow:
+        0 8px 14px rgba(110, 77, 46, 0.08),
+        inset 0 1px 0 rgba(255,255,255,0.16);
+    }
+
+    .move-list {
+      max-height: min(42vh, 380px);
+      overflow: auto;
+      padding-right: 4px;
+    }
+
+    .move-list::-webkit-scrollbar { width: 8px; }
+    .move-list::-webkit-scrollbar-thumb {
+      background: rgba(164, 119, 76, 0.22);
+      border-radius: 999px;
+    }
+
+    .move-empty {
+      margin: 0;
+      color: rgba(108, 76, 49, 0.7);
+      line-height: 1.7;
+    }
+
+    .move-item {
+      display: grid;
+      grid-template-columns: 46px 1fr;
+      gap: 10px;
+      align-items: start;
+      padding: 10px 0;
+      border-bottom: 1px solid rgba(131, 94, 58, 0.08);
+      color: #684122;
+      line-height: 1.58;
+      font-size: 0.95rem;
+    }
+
+    .move-item:last-child { border-bottom: none; }
+
+    .move-no {
+      color: rgba(126, 90, 58, 0.72);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .help {
+      margin: 0;
+      color: rgba(89, 60, 38, 0.9);
+      line-height: 1.78;
+      font-size: 0.94rem;
+    }
+
+    .help strong { color: #7f4a1f; }
+
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: max(18px, env(safe-area-inset-bottom));
+      transform: translateX(-50%) translateY(14px);
+      padding: 12px 18px;
+      border-radius: 999px;
+      color: #fffaf3;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.12), rgba(255,255,255,0.03)),
+        rgba(88, 58, 35, 0.92);
+      border: 1px solid rgba(255,255,255,0.14);
+      box-shadow: 0 18px 30px rgba(92, 58, 29, 0.28);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 220ms ease, transform 220ms ease;
+      z-index: 20;
+      max-width: min(92vw, 560px);
+      text-align: center;
+      line-height: 1.45;
+      font-size: 0.95rem;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    @media (min-width: 980px) {
+      .app {
+        grid-template-columns: minmax(0, 1fr) 350px;
+      }
+
+      .panel {
+        position: sticky;
+        top: 18px;
+      }
+    }
+
+    @media (max-width: 620px) {
+      .board-card,
+      .panel {
+        border-radius: 22px;
+        padding: 14px;
+      }
+
+      .board-frame {
+        padding: 2.2%;
+        border-radius: 8px;
+      }
+
+      .piece {
+        width: 88%;
+        font-size: clamp(1rem, 2.1vw + 0.72rem, 1.34rem);
+      }
+
+      .controls {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+  </style>
 </head>
 <body>
-<div class="game-container">
-    <h1>黑白棋Pro (Reversi)</h1>
+  <main class="app">
+    <section class="board-card">
+      <div class="title-wrap">
+        <div>
+          <h1>双人中国象棋</h1>
+          <p class="subtitle">本地双人对战 · 页面视觉采用文件二方案 · 判定逻辑采用文件一方案 · 支持刷新后保留棋局</p>
+        </div>
+        <div class="status-pill" aria-live="polite">
+          <span class="status-dot"></span>
+          <span id="topStatus">红方先行</span>
+        </div>
+      </div>
 
-    <!-- 模式与AI方选择：两排按钮，手机一屏可见 -->
-    <div class="top-controls">
-        <div class="mode-group" id="modeGroupWrapper">
-            <div class="mode-group-label">对手模式</div>
-            <div class="btn-group" id="modeGroup">
-                <button type="button" class="toggle-btn active" data-mode="ai">对 AI</button>
-                <button type="button" class="toggle-btn" data-mode="pvp">双人</button>
+      <div class="board-shell">
+        <div class="board-frame">
+          <div class="board-surface">
+            <svg class="board-svg" viewBox="0 0 9 10" preserveAspectRatio="none" aria-hidden="true">
+              <rect x="0" y="0" width="9" height="10" fill="transparent"></rect>
+              <g fill="none" stroke="var(--line)" stroke-width="0.034" stroke-linecap="square" stroke-linejoin="miter">
+                <rect x="0.5" y="0.5" width="8" height="9"></rect>
+                <path d="M1.5 0.5V4.5M1.5 5.5V9.5"></path>
+                <path d="M2.5 0.5V4.5M2.5 5.5V9.5"></path>
+                <path d="M3.5 0.5V4.5M3.5 5.5V9.5"></path>
+                <path d="M4.5 0.5V4.5M4.5 5.5V9.5"></path>
+                <path d="M5.5 0.5V4.5M5.5 5.5V9.5"></path>
+                <path d="M6.5 0.5V4.5M6.5 5.5V9.5"></path>
+                <path d="M7.5 0.5V4.5M7.5 5.5V9.5"></path>
+                <path d="M0.5 0.5H8.5"></path>
+                <path d="M0.5 1.5H8.5"></path>
+                <path d="M0.5 2.5H8.5"></path>
+                <path d="M0.5 3.5H8.5"></path>
+                <path d="M0.5 4.5H8.5"></path>
+                <path d="M0.5 5.5H8.5"></path>
+                <path d="M0.5 6.5H8.5"></path>
+                <path d="M0.5 7.5H8.5"></path>
+                <path d="M0.5 8.5H8.5"></path>
+                <path d="M0.5 9.5H8.5"></path>
+                <path d="M3.5 0.5L5.5 2.5M5.5 0.5L3.5 2.5"></path>
+                <path d="M3.5 7.5L5.5 9.5M5.5 7.5L3.5 9.5"></path>
+              </g>
+              <g fill="none" stroke="var(--line)" stroke-width="0.026" stroke-linecap="square" opacity="0.96">
+                <path d="M1.28 2.28h0.18v0.18M1.72 2.28h-0.18v0.18M1.28 2.72h0.18v-0.18M1.72 2.72h-0.18v-0.18"></path>
+                <path d="M7.28 2.28h0.18v0.18M7.72 2.28h-0.18v0.18M7.28 2.72h0.18v-0.18M7.72 2.72h-0.18v-0.18"></path>
+
+                <path d="M0.28 3.28h0.18v0.18M0.72 3.28h-0.18v0.18M0.28 3.72h0.18v-0.18M0.72 3.72h-0.18v-0.18"></path>
+                <path d="M2.28 3.28h0.18v0.18M2.72 3.28h-0.18v0.18M2.28 3.72h0.18v-0.18M2.72 3.72h-0.18v-0.18"></path>
+                <path d="M4.28 3.28h0.18v0.18M4.72 3.28h-0.18v0.18M4.28 3.72h0.18v-0.18M4.72 3.72h-0.18v-0.18"></path>
+                <path d="M6.28 3.28h0.18v0.18M6.72 3.28h-0.18v0.18M6.28 3.72h0.18v-0.18M6.72 3.72h-0.18v-0.18"></path>
+                <path d="M8.28 3.28h-0.18v0.18M7.84 3.28h0.18v0.18M8.28 3.72h-0.18v-0.18M7.84 3.72h0.18v-0.18"></path>
+
+                <path d="M0.28 6.28h0.18v0.18M0.72 6.28h-0.18v0.18M0.28 6.72h0.18v-0.18M0.72 6.72h-0.18v-0.18"></path>
+                <path d="M2.28 6.28h0.18v0.18M2.72 6.28h-0.18v0.18M2.28 6.72h0.18v-0.18M2.72 6.72h-0.18v-0.18"></path>
+                <path d="M4.28 6.28h0.18v0.18M4.72 6.28h-0.18v0.18M4.28 6.72h0.18v-0.18M4.72 6.72h-0.18v-0.18"></path>
+                <path d="M6.28 6.28h0.18v0.18M6.72 6.28h-0.18v0.18M6.28 6.72h0.18v-0.18M6.72 6.72h-0.18v-0.18"></path>
+                <path d="M8.28 6.28h-0.18v0.18M7.84 6.28h0.18v0.18M8.28 6.72h-0.18v-0.18M7.84 6.72h0.18v-0.18"></path>
+
+                <path d="M1.28 7.28h0.18v0.18M1.72 7.28h-0.18v0.18M1.28 7.72h0.18v-0.18M1.72 7.72h-0.18v-0.18"></path>
+                <path d="M7.28 7.28h0.18v0.18M7.72 7.28h-0.18v0.18M7.28 7.72h0.18v-0.18M7.72 7.72h-0.18v-0.18"></path>
+              </g>
+            </svg>
+            <div id="board" class="cells" role="grid" aria-label="中国象棋棋盘"></div>
+          </div>
+        </div>
+        <div class="coordinates" aria-hidden="true">
+          <span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>七</span><span>八</span><span>九</span>
+        </div>
+      </div>
+    </section>
+
+    <aside class="panel">
+      <div class="panel-grid">
+        <section class="panel-section">
+          <h2 class="panel-title">当前局面</h2>
+          <div class="turn-box">
+            <div class="turn-side" id="turnIndicator">
+              <span class="badge-piece red" id="turnBadge">帅</span>
+              <span id="turnText">红方行棋</span>
             </div>
-        </div>
-        <div class="mode-group" id="aiSideGroupWrapper">
-            <div class="mode-group-label">AI 执棋</div>
-            <div class="btn-group" id="aiSideGroup">
-                <button type="button" class="toggle-btn" data-side="1">黑（先手）</button>
-                <button type="button" class="toggle-btn active" data-side="-1">白（后手）</button>
+            <div class="turn-side">
+              <span class="badge-piece" id="stateBadge">局</span>
+              <span id="stateText">开局</span>
             </div>
-        </div>
-    </div>
+          </div>
+          <p class="status-text" id="statusText">点按己方棋子选中，再点目标位置落子。</p>
+        </section>
 
-    <div class="scores" id="scores">
-        <span class="score black-score">黑: 2</span>
-        <span class="score white-score">白: 2</span>
-    </div>
+        <section class="panel-section">
+          <h2 class="panel-title">操作</h2>
+          <div class="controls">
+            <button class="ctrl" id="undoBtn" type="button">悔棋一步</button>
+            <button class="ctrl secondary" id="resetBtn" type="button">重新开局</button>
+          </div>
+        </section>
 
-    <div class="status">
-        <span class="player current" id="currentPlayer">黑方</span> 的回合
-    </div>
+        <section class="panel-section">
+          <h2 class="panel-title">着法记录</h2>
+          <div class="move-list" id="moveList" aria-live="polite">
+            <p class="move-empty">尚未落子。</p>
+          </div>
+        </section>
 
-    <div class="board" id="board"></div>
+        <section class="panel-section">
+          <h2 class="panel-title">规则说明</h2>
+          <p class="help">
+            <strong>当前版本：</strong>页面样式与棋盘视觉采用文件二方案，落子、将军、困毙、绝杀、和棋等判定采用文件一方案。<br />
+            <strong>已实现：</strong>帅将对面、九宫限制、相象不过河、马腿、炮架、兵卒过河、将军判定、禁手（不能让己方将帅被将）、无合法着法判负、三次重复局面判和、长步数无进展判和、无足够攻杀子力判和。<br />
+            <strong>新增：</strong>已加入本地存档，刷新页面后会保留当前棋局、行棋方、着法记录与悔棋历史；点击“重新开局”会覆盖当前存档。
+          </p>
+        </section>
+      </div>
+    </aside>
+  </main>
 
-    <div class="bottom-bar">
-        <div class="btn-row">
-            <button id="undoBtn" title="悔棋">悔棋</button>
-            <button id="resetBtn" title="重新开始">重新开始</button>
-        </div>
-    </div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-    <div class="foot">提示：重新开始会直接刷新页面。对 AI 时，悔棋会回到你上一次落子前（不能连续悔棋）；终局仍会自动切入精确求解。</div>
-</div>
+  <script>
+    (() => {
+      const boardEl = document.getElementById('board');
+      const toastEl = document.getElementById('toast');
+      const topStatusEl = document.getElementById('topStatus');
+      const turnIndicatorEl = document.getElementById('turnIndicator');
+      const turnBadgeEl = document.getElementById('turnBadge');
+      const turnTextEl = document.getElementById('turnText');
+      const stateTextEl = document.getElementById('stateText');
+      const stateBadgeEl = document.getElementById('stateBadge');
+      const statusTextEl = document.getElementById('statusText');
+      const moveListEl = document.getElementById('moveList');
+      const undoBtn = document.getElementById('undoBtn');
+      const resetBtn = document.getElementById('resetBtn');
 
+      const STORAGE_KEY = 'xiangqi_design2_logic1_persist_v1';
+      const VALID_SIDES = new Set(['red', 'black']);
+      const VALID_TYPES = new Set(['general', 'advisor', 'elephant', 'horse', 'rook', 'cannon', 'pawn']);
 
-<script id="aiWorkerScript" type="text/plain">
-const BOARD_SIZE = 8;
-const EXACT_SOLVE_EMPTY_LIMIT = 12;
-const EXTENDED_SOLVE_EMPTY_LIMIT = 14;
-const MAX_TT_SIZE = 120000;
-const MAX_ITER_DEPTH = 18;
-const AI_TARGET_THINK_MS = 2000;
-const AI_MIN_THINK_MS = 1850;
-const AI_ACTIVE_SLICE_MS = 55;
-const AI_MAX_ACTIVE_SLICE_MS = 150;
-const AI_IDLE_SLICE_MS = 18;
-const AI_TIMEOUT_IDLE_MS = 28;
-
-const directions = [
-  [-1,-1], [-1,0], [-1,1],
-  [ 0,-1],         [ 0,1],
-  [ 1,-1], [ 1,0], [ 1,1]
-];
-
-const CORNERS = [[0,0],[0,7],[7,0],[7,7]];
-const X_SQUARES = {
-  '1,1': [0,0],
-  '1,6': [0,7],
-  '6,1': [7,0],
-  '6,6': [7,7]
-};
-const C_SQUARES = {
-  '0,1': [0,0], '1,0': [0,0],
-  '0,6': [0,7], '1,7': [0,7],
-  '6,0': [7,0], '7,1': [7,0],
-  '6,7': [7,7], '7,6': [7,7]
-};
-
-const PST = [
-  [120,-20, 20,  5,  5, 20,-20,120],
-  [-20,-40, -5, -5, -5, -5,-40,-20],
-  [ 20, -5, 15,  3,  3, 15, -5, 20],
-  [  5, -5,  3,  3,  3,  3, -5,  5],
-  [  5, -5,  3,  3,  3,  3, -5,  5],
-  [ 20, -5, 15,  3,  3, 15, -5, 20],
-  [-20,-40, -5, -5, -5, -5,-40,-20],
-  [120,-20, 20,  5,  5, 20,-20,120],
-];
-
-function deepCopyBoard(b) {
-  return b.map(row => row.slice());
-}
-
-function inBounds(r, c) {
-  return r >= 0 && r < BOARD_SIZE && c >= 0 && c < BOARD_SIZE;
-}
-
-function countPieces(b) {
-  let blackCount = 0;
-  let whiteCount = 0;
-  for (let r = 0; r < BOARD_SIZE; r++) {
-    for (let c = 0; c < BOARD_SIZE; c++) {
-      if (b[r][c] === 1) blackCount++;
-      else if (b[r][c] === -1) whiteCount++;
-    }
-  }
-  return { blackCount, whiteCount };
-}
-
-function countEmpties(b) {
-  let empty = 0;
-  for (let r = 0; r < BOARD_SIZE; r++) {
-    for (let c = 0; c < BOARD_SIZE; c++) {
-      if (b[r][c] === 0) empty++;
-    }
-  }
-  return empty;
-}
-
-function finalDiscDiff(b, player) {
-  const counts = countPieces(b);
-  return player === 1 ? counts.blackCount - counts.whiteCount : counts.whiteCount - counts.blackCount;
-}
-
-function normalizeDiff(a, b) {
-  const sum = a + b;
-  if (sum === 0) return 0;
-  return 100 * (a - b) / sum;
-}
-
-function isCornerCell(r, c) {
-  return (r === 0 || r === 7) && (c === 0 || c === 7);
-}
-
-function isEdgeCell(r, c) {
-  return (r === 0 || r === 7 || c === 0 || c === 7) && !isCornerCell(r, c);
-}
-
-function getRelatedCorner(r, c) {
-  return X_SQUARES[r + ',' + c] || C_SQUARES[r + ',' + c] || null;
-}
-
-function isRiskyXSquare(r, c, b) {
-  const corner = X_SQUARES[r + ',' + c];
-  return !!corner && b[corner[0]][corner[1]] === 0;
-}
-
-function isRiskyCSquare(r, c, b) {
-  const corner = C_SQUARES[r + ',' + c];
-  return !!corner && b[corner[0]][corner[1]] === 0;
-}
-
-function getFlips(row, col, player, b) {
-  if (b[row][col] !== 0) return [];
-  let all = [];
-
-  for (const dir of directions) {
-    const dr = dir[0];
-    const dc = dir[1];
-    let r = row + dr;
-    let c = col + dc;
-    const temp = [];
-
-    while (inBounds(r, c) && b[r][c] === -player) {
-      temp.push([r, c]);
-      r += dr;
-      c += dc;
-    }
-
-    if (temp.length > 0 && inBounds(r, c) && b[r][c] === player) {
-      all = all.concat(temp);
-    }
-  }
-
-  return all;
-}
-
-function listValidMoves(player, b) {
-  const list = [];
-  for (let r = 0; r < BOARD_SIZE; r++) {
-    for (let c = 0; c < BOARD_SIZE; c++) {
-      if (b[r][c] !== 0) continue;
-      const flips = getFlips(r, c, player, b);
-      if (flips.length > 0) list.push({ row: r, col: c, flips });
-    }
-  }
-  return list;
-}
-
-function applyMoveOn(b, move, player) {
-  const nb = deepCopyBoard(b);
-  nb[move.row][move.col] = player;
-  for (const flip of move.flips) {
-    nb[flip[0]][flip[1]] = player;
-  }
-  return nb;
-}
-
-function boardKey(b, player) {
-  let out = player === 1 ? 'b' : 'w';
-  for (let r = 0; r < BOARD_SIZE; r++) {
-    for (let c = 0; c < BOARD_SIZE; c++) {
-      const v = b[r][c];
-      out += v === 1 ? '1' : v === -1 ? '2' : '0';
-    }
-  }
-  return out;
-}
-
-function sameMove(a, b) {
-  return !!a && !!b && a.row === b.row && a.col === b.col;
-}
-
-function cloneMove(move) {
-  if (!move) return null;
-  return { row: move.row, col: move.col };
-}
-
-function frontierCount(b, player) {
-  let count = 0;
-  for (let r = 0; r < BOARD_SIZE; r++) {
-    for (let c = 0; c < BOARD_SIZE; c++) {
-      if (b[r][c] !== player) continue;
-      for (const dir of directions) {
-        const nr = r + dir[0];
-        const nc = c + dir[1];
-        if (inBounds(nr, nc) && b[nr][nc] === 0) {
-          count++;
-          break;
+      const PIECE_LABELS = {
+        red: {
+          general: '帅',
+          advisor: '仕',
+          elephant: '相',
+          horse: '马',
+          rook: '车',
+          cannon: '炮',
+          pawn: '兵'
+        },
+        black: {
+          general: '将',
+          advisor: '士',
+          elephant: '象',
+          horse: '马',
+          rook: '车',
+          cannon: '炮',
+          pawn: '卒'
         }
-      }
-    }
-  }
-  return count;
-}
+      };
 
-function potentialMobilityCount(b, player) {
-  let count = 0;
-  for (let r = 0; r < BOARD_SIZE; r++) {
-    for (let c = 0; c < BOARD_SIZE; c++) {
-      if (b[r][c] !== 0) continue;
-      for (const dir of directions) {
-        const nr = r + dir[0];
-        const nc = c + dir[1];
-        if (inBounds(nr, nc) && b[nr][nc] === -player) {
-          count++;
-          break;
+      const SIDE_TEXT = { red: '红方', black: '黑方' };
+      const TYPE_SHORT = {
+        general: '将',
+        advisor: '士',
+        elephant: '象',
+        horse: '马',
+        rook: '车',
+        cannon: '炮',
+        pawn: '兵'
+      };
+
+      let board = createInitialBoard();
+      let currentTurn = 'red';
+      let selected = null;
+      let legalMoves = [];
+      let history = [];
+      let moveHistory = [];
+      let lastMove = null;
+      let gameOver = false;
+      let gameResult = null;
+      let winner = null;
+      let halfMoveClock = 0;
+      let positionCounts = {};
+      let toastTimer = null;
+
+      if (!restoreState()) {
+        initPositionTracker();
+        topStatusEl.textContent = '红方先行';
+        stateTextEl.textContent = '开局';
+        stateBadgeEl.textContent = '局';
+        statusTextEl.textContent = '点按己方棋子选中，再点目标位置落子。';
+      }
+      renderAndPersist();
+
+      boardEl.addEventListener('click', (event) => {
+        const btn = event.target.closest('.cell');
+        if (!btn) return;
+        const x = Number(btn.dataset.x);
+        const y = Number(btn.dataset.y);
+        handleCellClick(x, y);
+      });
+
+      undoBtn.addEventListener('click', undoMove);
+      resetBtn.addEventListener('click', resetGame);
+
+      function createInitialBoard() {
+        const b = Array.from({ length: 10 }, () => Array(9).fill(null));
+        const set = (x, y, side, type) => {
+          b[y][x] = { side, type };
+        };
+
+        ['rook', 'horse', 'elephant', 'advisor', 'general', 'advisor', 'elephant', 'horse', 'rook']
+          .forEach((type, x) => set(x, 0, 'black', type));
+        set(1, 2, 'black', 'cannon');
+        set(7, 2, 'black', 'cannon');
+        [0, 2, 4, 6, 8].forEach((x) => set(x, 3, 'black', 'pawn'));
+
+        ['rook', 'horse', 'elephant', 'advisor', 'general', 'advisor', 'elephant', 'horse', 'rook']
+          .forEach((type, x) => set(x, 9, 'red', type));
+        set(1, 7, 'red', 'cannon');
+        set(7, 7, 'red', 'cannon');
+        [0, 2, 4, 6, 8].forEach((x) => set(x, 6, 'red', 'pawn'));
+
+        return b;
+      }
+
+      function cloneBoard(src) {
+        return src.map((row) => row.map((piece) => (piece ? { ...piece } : null)));
+      }
+
+      function clonePoint(point) {
+        if (!point || !Number.isInteger(point.x) || !Number.isInteger(point.y) || !inBounds(point.x, point.y)) return null;
+        return { x: point.x, y: point.y };
+      }
+
+      function cloneLastMove(move) {
+        if (!move) return null;
+        const from = clonePoint(move.from);
+        const to = clonePoint(move.to);
+        return from && to ? { from, to } : null;
+      }
+
+      function cloneMoveHistory(list) {
+        if (!Array.isArray(list)) return [];
+        return list
+          .filter((item) => item && typeof item.text === 'string')
+          .map((item, index) => ({
+            no: Number.isInteger(item.no) ? item.no : index + 1,
+            text: item.text
+          }));
+      }
+
+      function clonePositionCounts(src) {
+        const next = {};
+        if (!src || typeof src !== 'object') return next;
+        for (const [key, value] of Object.entries(src)) {
+          if (typeof key === 'string' && Number.isFinite(value) && value > 0) {
+            next[key] = Math.floor(value);
+          }
         }
+        return next;
       }
-    }
-  }
-  return count;
-}
 
-function countStableApprox(b, player) {
-  const stable = new Set();
+      function cloneHistoryEntry(entry) {
+        return {
+          board: cloneBoard(entry.board),
+          currentTurn: entry.currentTurn === 'black' ? 'black' : 'red',
+          moveHistory: cloneMoveHistory(entry.moveHistory),
+          lastMove: cloneLastMove(entry.lastMove),
+          gameOver: !!entry.gameOver,
+          gameResult: entry.gameResult === 'draw' ? 'draw' : (entry.gameResult === 'win' ? 'win' : null),
+          winner: entry.winner === 'black' ? 'black' : (entry.winner === 'red' ? 'red' : null),
+          halfMoveClock: Number.isFinite(entry.halfMoveClock) ? Math.max(0, Math.floor(entry.halfMoveClock)) : 0,
+          positionCounts: clonePositionCounts(entry.positionCounts)
+        };
+      }
 
-  function mark(r, c) {
-    stable.add(r + ',' + c);
-  }
+      function normalizeBoard(candidate) {
+        if (!Array.isArray(candidate) || candidate.length !== 10) return null;
+        const next = [];
+        for (let y = 0; y < 10; y++) {
+          const row = candidate[y];
+          if (!Array.isArray(row) || row.length !== 9) return null;
+          const normalizedRow = [];
+          for (let x = 0; x < 9; x++) {
+            const piece = row[x];
+            if (piece == null) {
+              normalizedRow.push(null);
+              continue;
+            }
+            if (!piece || !VALID_SIDES.has(piece.side) || !VALID_TYPES.has(piece.type)) return null;
+            normalizedRow.push({ side: piece.side, type: piece.type });
+          }
+          next.push(normalizedRow);
+        }
+        return next;
+      }
 
-  function scanFromCorner(cornerR, cornerC, stepR, stepC) {
-    if (b[cornerR][cornerC] !== player) return;
+      function normalizeHistory(candidate) {
+        if (!Array.isArray(candidate)) return [];
+        const next = [];
+        for (const entry of candidate) {
+          if (!entry || typeof entry !== 'object') continue;
+          const normalizedBoard = normalizeBoard(entry.board);
+          if (!normalizedBoard) continue;
+          next.push(cloneHistoryEntry({ ...entry, board: normalizedBoard }));
+        }
+        return next;
+      }
 
-    mark(cornerR, cornerC);
+      function captureUiState() {
+        return {
+          topStatus: topStatusEl.textContent,
+          stateText: stateTextEl.textContent,
+          stateBadge: stateBadgeEl.textContent,
+          statusText: statusTextEl.textContent
+        };
+      }
 
-    let r = cornerR + stepR;
-    let c = cornerC;
-    while (inBounds(r, c) && b[r][c] === player) {
-      mark(r, c);
-      r += stepR;
-    }
+      function applyUiState(uiState) {
+        if (!uiState || typeof uiState !== 'object') {
+          applyDerivedUiState();
+          return;
+        }
+        topStatusEl.textContent = typeof uiState.topStatus === 'string' ? uiState.topStatus : topStatusEl.textContent;
+        stateTextEl.textContent = typeof uiState.stateText === 'string' ? uiState.stateText : stateTextEl.textContent;
+        stateBadgeEl.textContent = typeof uiState.stateBadge === 'string' ? uiState.stateBadge : stateBadgeEl.textContent;
+        statusTextEl.textContent = typeof uiState.statusText === 'string' ? uiState.statusText : statusTextEl.textContent;
+      }
 
-    r = cornerR;
-    c = cornerC + stepC;
-    while (inBounds(r, c) && b[r][c] === player) {
-      mark(r, c);
-      c += stepC;
-    }
-  }
+      function applyDerivedUiState() {
+        if (gameOver && gameResult === 'draw') {
+          topStatusEl.textContent = '双方和棋';
+          stateTextEl.textContent = '和棋';
+          stateBadgeEl.textContent = '和';
+          statusTextEl.textContent = '本局已结束，不能悔棋。';
+          return;
+        }
+        if (gameOver && winner) {
+          topStatusEl.textContent = `${SIDE_TEXT[winner]}胜利`;
+          stateTextEl.textContent = '胜局';
+          stateBadgeEl.textContent = '胜';
+          statusTextEl.textContent = '本局已锁定结果，不能悔棋。';
+          return;
+        }
+        if (moveHistory.length && isInCheck(board, currentTurn)) {
+          topStatusEl.textContent = `${SIDE_TEXT[currentTurn]}被将军`;
+          stateTextEl.textContent = '将军';
+          stateBadgeEl.textContent = '将';
+          statusTextEl.textContent = `${SIDE_TEXT[currentTurn]}正在被将军，请立即应将。`;
+          return;
+        }
+        topStatusEl.textContent = moveHistory.length ? `${SIDE_TEXT[currentTurn]}行棋` : '红方先行';
+        stateTextEl.textContent = moveHistory.length ? '进行中' : '开局';
+        stateBadgeEl.textContent = '局';
+        statusTextEl.textContent = `${SIDE_TEXT[currentTurn]}行棋。点按己方棋子选中，再点目标位置落子。`;
+      }
 
-  scanFromCorner(0, 0, 1, 1);
-  scanFromCorner(0, 7, 1, -1);
-  scanFromCorner(7, 0, -1, 1);
-  scanFromCorner(7, 7, -1, -1);
-
-  function markFullEdge(cells) {
-    const full = cells.every(cell => b[cell[0]][cell[1]] !== 0);
-    if (!full) return;
-    for (const cell of cells) {
-      if (b[cell[0]][cell[1]] === player) mark(cell[0], cell[1]);
-    }
-  }
-
-  markFullEdge(Array.from({ length: 8 }, (_, i) => [0, i]));
-  markFullEdge(Array.from({ length: 8 }, (_, i) => [7, i]));
-  markFullEdge(Array.from({ length: 8 }, (_, i) => [i, 0]));
-  markFullEdge(Array.from({ length: 8 }, (_, i) => [i, 7]));
-
-  return stable.size;
-}
-
-function dynamicPositionalScore(b, player) {
-  let score = 0;
-  for (let r = 0; r < BOARD_SIZE; r++) {
-    for (let c = 0; c < BOARD_SIZE; c++) {
-      const v = b[r][c];
-      if (v === 0) continue;
-
-      let w = PST[r][c];
-      const corner = getRelatedCorner(r, c);
-      if (corner) {
-        const cornerValue = b[corner[0]][corner[1]];
-        if (X_SQUARES[r + ',' + c]) {
-          if (cornerValue === 0) w -= 80;
-          else if (cornerValue === v) w += 35;
-        } else {
-          if (cornerValue === 0) w -= 35;
-          else if (cornerValue === v) w += 20;
+      function saveState() {
+        try {
+          const payload = {
+            version: 1,
+            board: cloneBoard(board),
+            currentTurn,
+            selected: clonePoint(selected),
+            history: history.map(cloneHistoryEntry),
+            moveHistory: cloneMoveHistory(moveHistory),
+            lastMove: cloneLastMove(lastMove),
+            gameOver,
+            gameResult,
+            winner,
+            halfMoveClock,
+            positionCounts: clonePositionCounts(positionCounts),
+            uiState: captureUiState()
+          };
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+        } catch (error) {
+          console.warn('保存棋局失败：', error);
         }
       }
 
-      score += v === player ? w : -w;
-    }
-  }
-  return score;
-}
+      function restoreState() {
+        try {
+          const raw = localStorage.getItem(STORAGE_KEY);
+          if (!raw) return false;
+          const parsed = JSON.parse(raw);
+          if (!parsed || typeof parsed !== 'object' || parsed.version !== 1) return false;
 
-function evaluate(b, player) {
-  const counts = countPieces(b);
-  const myDiscs = player === 1 ? counts.blackCount : counts.whiteCount;
-  const oppDiscs = player === 1 ? counts.whiteCount : counts.blackCount;
-  const empties = 64 - myDiscs - oppDiscs;
+          const restoredBoard = normalizeBoard(parsed.board);
+          if (!restoredBoard) return false;
 
-  const myMoves = listValidMoves(player, b).length;
-  const oppMoves = listValidMoves(-player, b).length;
-  if (myMoves === 0 && oppMoves === 0) {
-    return finalDiscDiff(b, player) * 100000;
-  }
+          board = restoredBoard;
+          currentTurn = parsed.currentTurn === 'black' ? 'black' : 'red';
+          history = normalizeHistory(parsed.history);
+          moveHistory = cloneMoveHistory(parsed.moveHistory);
+          lastMove = cloneLastMove(parsed.lastMove);
+          gameOver = !!parsed.gameOver;
+          gameResult = parsed.gameResult === 'draw' ? 'draw' : (parsed.gameResult === 'win' ? 'win' : null);
+          winner = parsed.winner === 'black' ? 'black' : (parsed.winner === 'red' ? 'red' : null);
+          halfMoveClock = Number.isFinite(parsed.halfMoveClock) ? Math.max(0, Math.floor(parsed.halfMoveClock)) : 0;
+          positionCounts = clonePositionCounts(parsed.positionCounts);
+          selected = clonePoint(parsed.selected);
+          if (selected) {
+            const selectedPiece = pieceAt(board, selected.x, selected.y);
+            if (!selectedPiece || selectedPiece.side !== currentTurn || gameOver) {
+              selected = null;
+            }
+          }
+          legalMoves = selected ? legalMovesFor(board, selected.x, selected.y) : [];
 
-  let myCorners = 0;
-  let oppCorners = 0;
-  for (const corner of CORNERS) {
-    const r = corner[0];
-    const c = corner[1];
-    if (b[r][c] === player) myCorners++;
-    else if (b[r][c] === -player) oppCorners++;
-  }
+          if (!Object.keys(positionCounts).length) {
+            initPositionTracker();
+          }
 
-  let myCornerAdj = 0;
-  let oppCornerAdj = 0;
-  for (const key of Object.keys(X_SQUARES)) {
-    const parts = key.split(',').map(Number);
-    const r = parts[0];
-    const c = parts[1];
-    const corner = X_SQUARES[key];
-    if (b[corner[0]][corner[1]] !== 0) continue;
-    if (b[r][c] === player) myCornerAdj++;
-    else if (b[r][c] === -player) oppCornerAdj++;
-  }
-  for (const key of Object.keys(C_SQUARES)) {
-    const parts = key.split(',').map(Number);
-    const r = parts[0];
-    const c = parts[1];
-    const corner = C_SQUARES[key];
-    if (b[corner[0]][corner[1]] !== 0) continue;
-    if (b[r][c] === player) myCornerAdj++;
-    else if (b[r][c] === -player) oppCornerAdj++;
-  }
-
-  const myFrontier = frontierCount(b, player);
-  const oppFrontier = frontierCount(b, -player);
-  const myPotential = potentialMobilityCount(b, player);
-  const oppPotential = potentialMobilityCount(b, -player);
-  const myStable = countStableApprox(b, player);
-  const oppStable = countStableApprox(b, -player);
-  const positional = dynamicPositionalScore(b, player);
-
-  const discParity = normalizeDiff(myDiscs, oppDiscs);
-  const mobility = normalizeDiff(myMoves, oppMoves);
-  const potentialMobility = normalizeDiff(myPotential, oppPotential);
-  const frontierAdv = normalizeDiff(oppFrontier, myFrontier);
-  const stableDiff = myStable - oppStable;
-  const cornerDiff = myCorners - oppCorners;
-  const cornerAdjDiff = oppCornerAdj - myCornerAdj;
-  const parity = empties % 2 === 1 ? 6 : -6;
-
-  if (empties > 44) {
-    return (
-      650 * cornerDiff +
-      40 * cornerAdjDiff +
-      22 * stableDiff +
-      12 * mobility +
-      8 * potentialMobility +
-      7 * frontierAdv +
-      2 * discParity +
-      1.6 * positional
-    );
-  }
-
-  if (empties > 20) {
-    return (
-      780 * cornerDiff +
-      45 * cornerAdjDiff +
-      28 * stableDiff +
-      13 * mobility +
-      7 * potentialMobility +
-      8 * frontierAdv +
-      6 * discParity +
-      1.35 * positional +
-      parity
-    );
-  }
-
-  return (
-    900 * cornerDiff +
-    55 * cornerAdjDiff +
-    36 * stableDiff +
-    10 * mobility +
-    4 * potentialMobility +
-    4 * frontierAdv +
-    18 * discParity +
-    1.05 * positional +
-    2 * parity
-  );
-}
-
-function storeTT(tt, key, depth, value, bestMove, flag) {
-  if (tt.size > MAX_TT_SIZE) tt.clear();
-  tt.set(key, {
-    depth,
-    value,
-    best: cloneMove(bestMove),
-    flag
-  });
-}
-
-function storeKiller(killers, ply, move) {
-  if (!killers[ply]) killers[ply] = [null, null];
-  if (sameMove(killers[ply][0], move)) return;
-  killers[ply][1] = killers[ply][0];
-  killers[ply][0] = cloneMove(move);
-}
-
-function addHistory(historyTable, move, depth) {
-  historyTable[move.row][move.col] += depth * depth;
-  if (historyTable[move.row][move.col] > 1000000) {
-    for (let r = 0; r < BOARD_SIZE; r++) {
-      for (let c = 0; c < BOARD_SIZE; c++) {
-        historyTable[r][c] = Math.floor(historyTable[r][c] / 2);
+          applyUiState(parsed.uiState);
+          return true;
+        } catch (error) {
+          console.warn('读取棋局失败：', error);
+          return false;
+        }
       }
-    }
-  }
-}
 
-function scoreMoveForOrdering(b, move, player, options = {}) {
-  const ttMove = options.ttMove || null;
-  const killers = options.killers || null;
-  const historyTable = options.historyTable || null;
-  const ply = options.ply || 0;
-  const exact = !!options.exact;
-  let score = 0;
-
-  if (sameMove(move, ttMove)) score += 10000000;
-  if (killers && killers[ply]) {
-    if (sameMove(move, killers[ply][0])) score += 5000000;
-    else if (sameMove(move, killers[ply][1])) score += 4000000;
-  }
-
-  if (isCornerCell(move.row, move.col)) score += 2000000;
-  if (isEdgeCell(move.row, move.col)) score += 60000;
-  if (isRiskyXSquare(move.row, move.col, b)) score -= 700000;
-  if (isRiskyCSquare(move.row, move.col, b)) score -= 250000;
-
-  score += PST[move.row][move.col] * 800;
-  score += move.flips.length * 120;
-  if (historyTable) score += historyTable[move.row][move.col];
-
-  const nb = applyMoveOn(b, move, player);
-  const oppMoves = listValidMoves(-player, nb).length;
-  const myMoves = listValidMoves(player, nb).length;
-  score -= oppMoves * (exact ? 260 : 180);
-  score += myMoves * 25;
-
-  if (countEmpties(b) <= 18) {
-    const stableBonus = countStableApprox(nb, player) - countStableApprox(nb, -player);
-    score += stableBonus * 160;
-  }
-
-  return score;
-}
-
-function orderMovesAdvanced(b, moves, player, options = {}) {
-  return moves
-    .map(move => ({ move, score: scoreMoveForOrdering(b, move, player, options) }))
-    .sort((a, bItem) => bItem.score - a.score)
-    .map(item => item.move);
-}
-
-function exactSearch(b, player, alpha, beta, tt) {
-  const key = boardKey(b, player);
-  const entry = tt.get(key);
-  const alphaOrig = alpha;
-  const betaOrig = beta;
-
-  if (entry) {
-    if (entry.flag === 'EXACT') return { value: entry.value, move: entry.best };
-    if (entry.flag === 'LOWER') alpha = Math.max(alpha, entry.value);
-    else if (entry.flag === 'UPPER') beta = Math.min(beta, entry.value);
-    if (alpha >= beta) return { value: entry.value, move: entry.best };
-  }
-
-  const myMoves = listValidMoves(player, b);
-  if (myMoves.length === 0) {
-    const oppMoves = listValidMoves(-player, b);
-    if (oppMoves.length === 0) {
-      const terminal = finalDiscDiff(b, player);
-      return { value: terminal, move: null };
-    }
-    const passResult = exactSearch(b, -player, -beta, -alpha, tt);
-    return { value: -passResult.value, move: null };
-  }
-
-  let bestMove = null;
-  let bestVal = -Infinity;
-  const ttMove = entry ? entry.best : null;
-  const ordered = orderMovesAdvanced(b, myMoves, player, { ttMove, exact: true });
-
-  for (const move of ordered) {
-    const nb = applyMoveOn(b, move, player);
-    const result = exactSearch(nb, -player, -beta, -alpha, tt);
-    const value = -result.value;
-
-    if (value > bestVal) {
-      bestVal = value;
-      bestMove = move;
-    }
-
-    if (value > alpha) alpha = value;
-    if (alpha >= beta) break;
-  }
-
-  let flag = 'EXACT';
-  if (bestVal <= alphaOrig) flag = 'UPPER';
-  else if (bestVal >= betaOrig) flag = 'LOWER';
-  storeTT(tt, key, Infinity, bestVal, bestMove, flag);
-
-  return { value: bestVal, move: bestMove };
-}
-
-function negamaxSearch(b, player, depth, alpha, beta, deadline, tt, killers, historyTable, ply = 0) {
-  if (Date.now() >= deadline) {
-    return { timeout: true, value: 0, move: null };
-  }
-
-  const key = boardKey(b, player);
-  const entry = tt.get(key);
-  const alphaOrig = alpha;
-  const betaOrig = beta;
-
-  if (entry && entry.depth >= depth) {
-    if (entry.flag === 'EXACT') return { timeout: false, value: entry.value, move: entry.best };
-    if (entry.flag === 'LOWER') alpha = Math.max(alpha, entry.value);
-    else if (entry.flag === 'UPPER') beta = Math.min(beta, entry.value);
-    if (alpha >= beta) return { timeout: false, value: entry.value, move: entry.best };
-  }
-
-  const myMoves = listValidMoves(player, b);
-  if (myMoves.length === 0) {
-    const oppMoves = listValidMoves(-player, b);
-    if (oppMoves.length === 0) {
-      return { timeout: false, value: finalDiscDiff(b, player) * 100000, move: null };
-    }
-    const passResult = negamaxSearch(b, -player, depth, -beta, -alpha, deadline, tt, killers, historyTable, ply + 1);
-    if (passResult.timeout) return passResult;
-    return { timeout: false, value: -passResult.value, move: null };
-  }
-
-  if (depth <= 0) {
-    return { timeout: false, value: evaluate(b, player), move: null };
-  }
-
-  let bestMove = null;
-  let bestVal = -Infinity;
-  const ttMove = entry ? entry.best : null;
-  const ordered = orderMovesAdvanced(b, myMoves, player, { ttMove, killers, historyTable, ply });
-
-  let firstChild = true;
-  for (const move of ordered) {
-    const nb = applyMoveOn(b, move, player);
-    let childResult;
-    let value;
-
-    if (firstChild) {
-      childResult = negamaxSearch(nb, -player, depth - 1, -beta, -alpha, deadline, tt, killers, historyTable, ply + 1);
-      if (childResult.timeout) return childResult;
-      value = -childResult.value;
-      firstChild = false;
-    } else {
-      childResult = negamaxSearch(nb, -player, depth - 1, -alpha - 1, -alpha, deadline, tt, killers, historyTable, ply + 1);
-      if (childResult.timeout) return childResult;
-      value = -childResult.value;
-
-      if (value > alpha && value < beta) {
-        childResult = negamaxSearch(nb, -player, depth - 1, -beta, -value, deadline, tt, killers, historyTable, ply + 1);
-        if (childResult.timeout) return childResult;
-        value = -childResult.value;
+      function renderAndPersist() {
+        render();
+        saveState();
       }
-    }
 
-    if (value > bestVal) {
-      bestVal = value;
-      bestMove = move;
-    }
+      function inBounds(x, y) {
+        return x >= 0 && x < 9 && y >= 0 && y < 10;
+      }
 
-    if (value > alpha) alpha = value;
-    if (alpha >= beta) {
-      storeKiller(killers, ply, move);
-      addHistory(historyTable, move, depth);
-      break;
-    }
-  }
+      function pieceAt(b, x, y) {
+        return inBounds(x, y) ? b[y][x] : null;
+      }
 
-  let flag = 'EXACT';
-  if (bestVal <= alphaOrig) flag = 'UPPER';
-  else if (bestVal >= betaOrig) flag = 'LOWER';
-  storeTT(tt, key, depth, bestVal, bestMove, flag);
+      function addMove(moves, b, side, x, y) {
+        if (!inBounds(x, y)) return;
+        const target = pieceAt(b, x, y);
+        if (!target || target.side !== side) moves.push({ x, y });
+      }
 
-  return { timeout: false, value: bestVal, move: bestMove };
-}
+      function palaceContains(side, x, y) {
+        const xIn = x >= 3 && x <= 5;
+        const yIn = side === 'red' ? y >= 7 && y <= 9 : y >= 0 && y <= 2;
+        return xIn && yIn;
+      }
 
-function shouldUseExactSolver(b, player) {
-  const empties = countEmpties(b);
-  if (empties <= EXACT_SOLVE_EMPTY_LIMIT) return true;
-  if (empties <= EXTENDED_SOLVE_EMPTY_LIMIT) {
-    return listValidMoves(player, b).length <= 6;
-  }
-  return false;
-}
+      function crossedRiver(side, y) {
+        return side === 'red' ? y <= 4 : y >= 5;
+      }
 
-function getAdaptiveMaxDepth(empties) {
-  if (empties >= 50) return 5;
-  if (empties >= 40) return 6;
-  if (empties >= 28) return 7;
-  if (empties >= 20) return 9;
-  if (empties >= 16) return 11;
-  return MAX_ITER_DEPTH;
-}
+      function forwardDir(side) {
+        return side === 'red' ? -1 : 1;
+      }
 
-function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
+      function dedupeMoves(moves) {
+        const seen = new Set();
+        return moves.filter((move) => {
+          const key = `${move.x},${move.y}`;
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
+      }
 
-async function findBestMovePaced(b, player) {
-  const start = Date.now();
-  const openingMoves = listValidMoves(player, b);
-  if (openingMoves.length === 0) {
-    return { move: null, elapsed: 0, mode: 'pass' };
-  }
+      function generatePseudoMoves(b, x, y) {
+        const piece = pieceAt(b, x, y);
+        if (!piece) return [];
+        const moves = [];
+        const { side, type } = piece;
 
-  let bestMove = orderMovesAdvanced(b, openingMoves, player)[0];
-  let bestValue = 0;
+        if (type === 'general') {
+          [[1,0],[-1,0],[0,1],[0,-1]].forEach(([dx, dy]) => {
+            const nx = x + dx;
+            const ny = y + dy;
+            if (palaceContains(side, nx, ny)) addMove(moves, b, side, nx, ny);
+          });
 
-  if (shouldUseExactSolver(b, player)) {
-    const exactTT = new Map();
-    const exactResult = exactSearch(b, player, -Infinity, Infinity, exactTT);
-    if (exactResult.move) bestMove = exactResult.move;
-    const spent = Date.now() - start;
-    if (spent < AI_MIN_THINK_MS) await sleep(AI_MIN_THINK_MS - spent);
-    return {
-      move: bestMove,
-      elapsed: Date.now() - start,
-      mode: 'exact'
-    };
-  }
+          for (let ny = y + (side === 'red' ? -1 : 1); ny >= 0 && ny < 10; ny += (side === 'red' ? -1 : 1)) {
+            const p = pieceAt(b, x, ny);
+            if (!p) continue;
+            if (p.type === 'general' && p.side !== side) moves.push({ x, y: ny });
+            break;
+          }
+        }
 
-  const tt = new Map();
-  const killers = Array.from({ length: 80 }, () => [null, null]);
-  const historyTable = Array.from({ length: BOARD_SIZE }, () => Array(BOARD_SIZE).fill(0));
-  const empties = countEmpties(b);
-  const maxDepth = getAdaptiveMaxDepth(empties);
+        if (type === 'advisor') {
+          [[1,1],[1,-1],[-1,1],[-1,-1]].forEach(([dx, dy]) => {
+            const nx = x + dx;
+            const ny = y + dy;
+            if (palaceContains(side, nx, ny)) addMove(moves, b, side, nx, ny);
+          });
+        }
 
-  let nextDepth = 1;
-  let sliceBudget = AI_ACTIVE_SLICE_MS;
+        if (type === 'elephant') {
+          [[2,2],[2,-2],[-2,2],[-2,-2]].forEach(([dx, dy]) => {
+            const nx = x + dx;
+            const ny = y + dy;
+            const eyeX = x + dx / 2;
+            const eyeY = y + dy / 2;
+            const staysSide = side === 'red' ? ny >= 5 : ny <= 4;
+            if (inBounds(nx, ny) && staysSide && !pieceAt(b, eyeX, eyeY)) addMove(moves, b, side, nx, ny);
+          });
+        }
 
-  while (nextDepth <= maxDepth) {
-    const elapsed = Date.now() - start;
-    const remaining = AI_TARGET_THINK_MS - elapsed;
-    if (remaining <= 8) break;
+        if (type === 'horse') {
+          [
+            { dx: 1, dy: 2, lx: 0, ly: 1 },
+            { dx: -1, dy: 2, lx: 0, ly: 1 },
+            { dx: 1, dy: -2, lx: 0, ly: -1 },
+            { dx: -1, dy: -2, lx: 0, ly: -1 },
+            { dx: 2, dy: 1, lx: 1, ly: 0 },
+            { dx: 2, dy: -1, lx: 1, ly: 0 },
+            { dx: -2, dy: 1, lx: -1, ly: 0 },
+            { dx: -2, dy: -1, lx: -1, ly: 0 }
+          ].forEach(({ dx, dy, lx, ly }) => {
+            if (!pieceAt(b, x + lx, y + ly)) addMove(moves, b, side, x + dx, y + dy);
+          });
+        }
 
-    const depth = nextDepth;
-    const searchBudget = Math.max(18, Math.min(sliceBudget, remaining));
+        if (type === 'rook') {
+          [[1,0],[-1,0],[0,1],[0,-1]].forEach(([dx, dy]) => {
+            let nx = x + dx;
+            let ny = y + dy;
+            while (inBounds(nx, ny)) {
+              const target = pieceAt(b, nx, ny);
+              if (!target) {
+                moves.push({ x: nx, y: ny });
+              } else {
+                if (target.side !== side) moves.push({ x: nx, y: ny });
+                break;
+              }
+              nx += dx;
+              ny += dy;
+            }
+          });
+        }
 
-    let alpha = -Infinity;
-    let beta = Infinity;
-    if (depth >= 3) {
-      const window = 45 + depth * 8;
-      alpha = bestValue - window;
-      beta = bestValue + window;
-    }
+        if (type === 'cannon') {
+          [[1,0],[-1,0],[0,1],[0,-1]].forEach(([dx, dy]) => {
+            let nx = x + dx;
+            let ny = y + dy;
+            let screenFound = false;
+            while (inBounds(nx, ny)) {
+              const target = pieceAt(b, nx, ny);
+              if (!screenFound) {
+                if (!target) {
+                  moves.push({ x: nx, y: ny });
+                } else {
+                  screenFound = true;
+                }
+              } else if (target) {
+                if (target.side !== side) moves.push({ x: nx, y: ny });
+                break;
+              }
+              nx += dx;
+              ny += dy;
+            }
+          });
+        }
 
-    let result = negamaxSearch(
-      b,
-      player,
-      depth,
-      alpha,
-      beta,
-      Date.now() + searchBudget,
-      tt,
-      killers,
-      historyTable,
-      0
-    );
+        if (type === 'pawn') {
+          addMove(moves, b, side, x, y + forwardDir(side));
+          if (crossedRiver(side, y)) {
+            addMove(moves, b, side, x - 1, y);
+            addMove(moves, b, side, x + 1, y);
+          }
+        }
 
-    if (!result.timeout && depth >= 3 && (result.value <= alpha || result.value >= beta)) {
-      const remainingAfterFirst = AI_TARGET_THINK_MS - (Date.now() - start);
-      const refreshBudget = Math.max(20, Math.min(sliceBudget + 15, AI_MAX_ACTIVE_SLICE_MS, remainingAfterFirst));
-      result = negamaxSearch(
-        b,
-        player,
-        depth,
-        -Infinity,
-        Infinity,
-        Date.now() + refreshBudget,
-        tt,
-        killers,
-        historyTable,
-        0
-      );
-    }
+        return dedupeMoves(moves);
+      }
 
-    if (!result.timeout && result.move) {
-      bestMove = result.move;
-      bestValue = result.value;
-      nextDepth += 1;
-      sliceBudget = Math.max(AI_ACTIVE_SLICE_MS, Math.min(110, Math.round(sliceBudget * 0.92)));
-    } else {
-      sliceBudget = Math.min(AI_MAX_ACTIVE_SLICE_MS, Math.round(sliceBudget * 1.4) + 10);
-    }
+      function simulateMove(srcBoard, from, to) {
+        const next = cloneBoard(srcBoard);
+        next[to.y][to.x] = next[from.y][from.x];
+        next[from.y][from.x] = null;
+        return next;
+      }
 
-    const afterElapsed = Date.now() - start;
-    if (afterElapsed >= AI_TARGET_THINK_MS) break;
+      function findGeneral(b, side) {
+        for (let y = 0; y < 10; y++) {
+          for (let x = 0; x < 9; x++) {
+            const p = b[y][x];
+            if (p && p.side === side && p.type === 'general') return { x, y };
+          }
+        }
+        return null;
+      }
 
-    const restMs = result.timeout
-      ? Math.min(AI_TIMEOUT_IDLE_MS, AI_TARGET_THINK_MS - afterElapsed)
-      : Math.min(AI_IDLE_SLICE_MS, AI_TARGET_THINK_MS - afterElapsed);
+      function squareAttackedBy(b, tx, ty, attackerSide) {
+        for (let y = 0; y < 10; y++) {
+          for (let x = 0; x < 9; x++) {
+            const p = b[y][x];
+            if (!p || p.side !== attackerSide) continue;
+            const moves = generatePseudoMoves(b, x, y);
+            if (moves.some((move) => move.x === tx && move.y === ty)) return true;
+          }
+        }
+        return false;
+      }
 
-    if (restMs > 0) await sleep(restMs);
-  }
-
-  const spent = Date.now() - start;
-  if (spent < AI_MIN_THINK_MS) {
-    await sleep(AI_MIN_THINK_MS - spent);
-  }
-
-  return {
-    move: bestMove,
-    elapsed: Date.now() - start,
-    depth: nextDepth - 1,
-    value: bestValue,
-    mode: 'paced'
-  };
-}
-
-self.onmessage = async function(event) {
-  const data = event.data || {};
-  if (data.type !== 'think') return;
-
-  try {
-    const result = await findBestMovePaced(data.board, data.player);
-    self.postMessage({
-      type: 'result',
-      requestId: data.requestId,
-      result
-    });
-  } catch (error) {
-    self.postMessage({
-      type: 'error',
-      requestId: data.requestId,
-      error: error && error.message ? error.message : String(error)
-    });
-  }
-};
-</script>
-
-<script>
-/** ====== 基础与状态 ====== */
-const BOARD_SIZE = 8;
-const EXACT_SOLVE_EMPTY_LIMIT = 12;
-const EXTENDED_SOLVE_EMPTY_LIMIT = 14;
-const MAX_TT_SIZE = 120000;
-const MAX_ITER_DEPTH = 18;
-const AI_TARGET_THINK_MS = 2000;
-const AI_MIN_THINK_MS = 1850;
-let aiWorker = null;
-let aiWorkerUrl = null;
-let aiRequestId = 0;
-
-let board = Array.from({ length: BOARD_SIZE }, () => Array(BOARD_SIZE).fill(0));
-let currentPlayer = 1; // 1: black, -1: white
-let gameOver = false;
-let isProcessingMove = false;
-let aiThinking = false;
-let undoLocked = false;
-let history = [];
-
-let mode = 'ai';
-let aiPlays = -1;
-let modeLocked = false;
-
-const undoBtn = document.getElementById('undoBtn');
-const resetBtn = document.getElementById('resetBtn');
-
-const modeGroupWrapper = document.getElementById('modeGroupWrapper');
-const aiSideGroupWrapper = document.getElementById('aiSideGroupWrapper');
-const modeButtons = document.querySelectorAll('#modeGroup .toggle-btn');
-const aiSideButtons = document.querySelectorAll('#aiSideGroup .toggle-btn');
-
-const directions = [
-  [-1,-1], [-1,0], [-1,1],
-  [ 0,-1],         [ 0,1],
-  [ 1,-1], [ 1,0], [ 1,1]
-];
-
-const CORNERS = [[0,0],[0,7],[7,0],[7,7]];
-const X_SQUARES = {
-  '1,1': [0,0],
-  '1,6': [0,7],
-  '6,1': [7,0],
-  '6,6': [7,7]
-};
-const C_SQUARES = {
-  '0,1': [0,0], '1,0': [0,0],
-  '0,6': [0,7], '1,7': [0,7],
-  '6,0': [7,0], '7,1': [7,0],
-  '6,7': [7,7], '7,6': [7,7]
-};
-
-const PST = [
-  [120,-20, 20,  5,  5, 20,-20,120],
-  [-20,-40, -5, -5, -5, -5,-40,-20],
-  [ 20, -5, 15,  3,  3, 15, -5, 20],
-  [  5, -5,  3,  3,  3,  3, -5,  5],
-  [  5, -5,  3,  3,  3,  3, -5,  5],
-  [ 20, -5, 15,  3,  3, 15, -5, 20],
-  [-20,-40, -5, -5, -5, -5,-40,-20],
-  [120,-20, 20,  5,  5, 20,-20,120],
-];
-
-/** ====== 工具函数 ====== */
-function deepCopyBoard(b) {
-  return b.map(row => row.slice());
-}
-
-function inBounds(r, c) {
-  return r >= 0 && r < BOARD_SIZE && c >= 0 && c < BOARD_SIZE;
-}
-
-function countPieces(b = board) {
-  let blackCount = 0;
-  let whiteCount = 0;
-  for (let r = 0; r < BOARD_SIZE; r++) {
-    for (let c = 0; c < BOARD_SIZE; c++) {
-      if (b[r][c] === 1) blackCount++;
-      else if (b[r][c] === -1) whiteCount++;
-    }
-  }
-  return { blackCount, whiteCount };
-}
-
-function countEmpties(b = board) {
-  let empty = 0;
-  for (let r = 0; r < BOARD_SIZE; r++) {
-    for (let c = 0; c < BOARD_SIZE; c++) {
-      if (b[r][c] === 0) empty++;
-    }
-  }
-  return empty;
-}
-
-function finalDiscDiff(b, player) {
-  const { blackCount, whiteCount } = countPieces(b);
-  return player === 1 ? blackCount - whiteCount : whiteCount - blackCount;
-}
-
-function normalizeDiff(a, b) {
-  const sum = a + b;
-  if (sum === 0) return 0;
-  return 100 * (a - b) / sum;
-}
-
-function isCornerCell(r, c) {
-  return (r === 0 || r === 7) && (c === 0 || c === 7);
-}
-
-function isEdgeCell(r, c) {
-  return (r === 0 || r === 7 || c === 0 || c === 7) && !isCornerCell(r, c);
-}
-
-function getRelatedCorner(r, c) {
-  return X_SQUARES[`${r},${c}`] || C_SQUARES[`${r},${c}`] || null;
-}
-
-function isRiskyXSquare(r, c, b) {
-  const corner = X_SQUARES[`${r},${c}`];
-  return !!corner && b[corner[0]][corner[1]] === 0;
-}
-
-function isRiskyCSquare(r, c, b) {
-  const corner = C_SQUARES[`${r},${c}`];
-  return !!corner && b[corner[0]][corner[1]] === 0;
-}
-
-function getFlips(row, col, player, b = board) {
-  if (b[row][col] !== 0) return [];
-  let all = [];
-
-  for (const [dr, dc] of directions) {
-    let r = row + dr;
-    let c = col + dc;
-    const temp = [];
-
-    while (inBounds(r, c) && b[r][c] === -player) {
-      temp.push([r, c]);
-      r += dr;
-      c += dc;
-    }
-
-    if (temp.length > 0 && inBounds(r, c) && b[r][c] === player) {
-      all = all.concat(temp);
-    }
-  }
-
-  return all;
-}
-
-function isValidMoveOn(row, col, player, b = board) {
-  return b[row][col] === 0 && getFlips(row, col, player, b).length > 0;
-}
-
-function hasValidMoves(player, b = board) {
-  for (let r = 0; r < BOARD_SIZE; r++) {
-    for (let c = 0; c < BOARD_SIZE; c++) {
-      if (b[r][c] === 0 && getFlips(r, c, player, b).length > 0) {
+      function generalsFacing(b) {
+        const red = findGeneral(b, 'red');
+        const black = findGeneral(b, 'black');
+        if (!red || !black || red.x !== black.x) return false;
+        const minY = Math.min(red.y, black.y) + 1;
+        const maxY = Math.max(red.y, black.y);
+        for (let y = minY; y < maxY; y++) {
+          if (pieceAt(b, red.x, y)) return false;
+        }
         return true;
       }
-    }
-  }
-  return false;
-}
 
-function listValidMoves(player, b = board) {
-  const list = [];
-  for (let r = 0; r < BOARD_SIZE; r++) {
-    for (let c = 0; c < BOARD_SIZE; c++) {
-      if (b[r][c] !== 0) continue;
-      const flips = getFlips(r, c, player, b);
-      if (flips.length > 0) list.push({ row: r, col: c, flips });
-    }
-  }
-  return list;
-}
-
-function applyMoveOn(b, move, player) {
-  const nb = deepCopyBoard(b);
-  nb[move.row][move.col] = player;
-  for (const [fr, fc] of move.flips) {
-    nb[fr][fc] = player;
-  }
-  return nb;
-}
-
-function boardKey(b, player) {
-  let out = player === 1 ? 'b' : 'w';
-  for (let r = 0; r < BOARD_SIZE; r++) {
-    for (let c = 0; c < BOARD_SIZE; c++) {
-      const v = b[r][c];
-      out += v === 1 ? '1' : v === -1 ? '2' : '0';
-    }
-  }
-  return out;
-}
-
-function sameMove(a, b) {
-  return !!a && !!b && a.row === b.row && a.col === b.col;
-}
-
-function cloneMove(move) {
-  if (!move) return null;
-  return { row: move.row, col: move.col };
-}
-
-function cancelPendingAIActions() {
-  aiRequestId += 1;
-  if (aiWorker) {
-    destroyAIWorker();
-  }
-  aiThinking = false;
-}
-
-function pushHistory() {
-  history.push({
-    board: deepCopyBoard(board),
-    currentPlayer,
-    gameOver
-  });
-}
-
-function restoreState(state) {
-  cancelPendingAIActions();
-  board = deepCopyBoard(state.board);
-  currentPlayer = state.currentPlayer;
-  gameOver = state.gameOver;
-  isProcessingMove = false;
-  renderBoard();
-  highlightValidMoves();
-  updateStatus();
-}
-
-function refreshModeUIState() {
-  if (modeLocked) {
-    modeGroupWrapper.classList.add('disabled');
-    aiSideGroupWrapper.classList.add('disabled');
-  } else {
-    modeGroupWrapper.classList.remove('disabled');
-    if (mode === 'ai') aiSideGroupWrapper.classList.remove('disabled');
-    else aiSideGroupWrapper.classList.add('disabled');
-  }
-}
-
-function setUIBusy(busy) {
-  const toggleBtns = document.querySelectorAll('.toggle-btn');
-  toggleBtns.forEach(btn => { btn.disabled = busy; });
-
-  undoBtn.disabled = busy || (mode === 'ai' && undoLocked);
-  resetBtn.disabled = false;
-
-  const boardEl = document.getElementById('board');
-  if (aiThinking) boardEl.classList.add('thinking');
-  else boardEl.classList.remove('thinking');
-}
-
-/** ====== 渲染与状态 ====== */
-function renderBoard() {
-  const boardEl = document.getElementById('board');
-  boardEl.innerHTML = '';
-
-  for (let row = 0; row < BOARD_SIZE; row++) {
-    for (let col = 0; col < BOARD_SIZE; col++) {
-      const cell = document.createElement('div');
-      cell.className = 'cell';
-      cell.dataset.row = row;
-      cell.dataset.col = col;
-
-      if (!gameOver) {
-        cell.onclick = () => makeMove(row, col);
+      function isInCheck(b, side) {
+        const general = findGeneral(b, side);
+        if (!general) return true;
+        const enemySide = side === 'red' ? 'black' : 'red';
+        return squareAttackedBy(b, general.x, general.y, enemySide) || generalsFacing(b);
       }
 
-      const piece = document.createElement('div');
-      piece.className = 'piece';
-      if (board[row][col] === 1) piece.classList.add('black');
-      else if (board[row][col] === -1) piece.classList.add('white');
-
-      cell.appendChild(piece);
-      boardEl.appendChild(cell);
-    }
-  }
-
-  if (gameOver) boardEl.classList.add('game-over');
-  else boardEl.classList.remove('game-over');
-}
-
-function highlightValidMoves() {
-  document.querySelectorAll('.cell').forEach(cell => cell.classList.remove('valid'));
-  if (gameOver) return;
-
-  for (let r = 0; r < BOARD_SIZE; r++) {
-    for (let c = 0; c < BOARD_SIZE; c++) {
-      if (board[r][c] === 0 && isValidMoveOn(r, c, currentPlayer, board)) {
-        const cellEl = document.querySelector(`[data-row="${r}"][data-col="${c}"]`);
-        if (cellEl) cellEl.classList.add('valid');
+      function legalMovesFor(b, x, y) {
+        const piece = pieceAt(b, x, y);
+        if (!piece) return [];
+        return generatePseudoMoves(b, x, y).filter((move) => !isInCheck(simulateMove(b, { x, y }, move), piece.side));
       }
-    }
-  }
-}
 
-function updateStatus(extraText = '') {
-  const status = document.querySelector('.status');
-  if (!gameOver) {
-    const playerText = currentPlayer === 1 ? '黑方' : '白方';
-    let prefix = `<span class="player current">${playerText}</span> 的回合`;
-    if (aiThinking) prefix = '🤖 AI 思考中…';
-    status.innerHTML = extraText ? `${prefix} · ${extraText}` : prefix;
-  }
-
-  const { blackCount, whiteCount } = countPieces();
-  const scoresEl = document.getElementById('scores');
-  scoresEl.innerHTML =
-    `<span class="score black-score">黑: ${blackCount}</span>` +
-    `<span class="score white-score">白: ${whiteCount}</span>`;
-
-  setUIBusy(isProcessingMove || aiThinking);
-}
-
-/** ====== 核心：落子 ====== */
-function makeMove(row, col, opts = { force: false }) {
-  if (gameOver) return;
-  if (!opts.force && (isProcessingMove || aiThinking)) return;
-  if (mode === 'ai' && !opts.force && currentPlayer === aiPlays) return;
-  if (!isValidMoveOn(row, col, currentPlayer, board)) return;
-
-  if (!modeLocked) {
-    modeLocked = true;
-    refreshModeUIState();
-  }
-
-  pushHistory();
-  isProcessingMove = true;
-
-  board[row][col] = currentPlayer;
-  const piece = document.querySelector(`[data-row="${row}"][data-col="${col}"] .piece`);
-  if (piece) {
-    piece.classList.add(currentPlayer === 1 ? 'black' : 'white', 'appear');
-  }
-
-  for (const [dr, dc] of directions) {
-    const toFlip = [];
-    let r = row + dr;
-    let c = col + dc;
-
-    while (inBounds(r, c) && board[r][c] === -currentPlayer) {
-      toFlip.push([r, c]);
-      r += dr;
-      c += dc;
-    }
-
-    if (toFlip.length > 0 && inBounds(r, c) && board[r][c] === currentPlayer) {
-      for (const [fr, fc] of toFlip) {
-        board[fr][fc] = currentPlayer;
-        const flipPiece = document.querySelector(`[data-row="${fr}"][data-col="${fc}"] .piece`);
-        if (!flipPiece) continue;
-
-        const oldColor = flipPiece.classList.contains('black') ? 'black' : 'white';
-        const newColor = currentPlayer === 1 ? 'black' : 'white';
-
-        flipPiece.classList.add('flip');
-        setTimeout(() => {
-          flipPiece.classList.remove(oldColor);
-          flipPiece.classList.add(newColor);
-        }, 300);
-        setTimeout(() => flipPiece.classList.remove('flip'), 600);
+      function hasAnyLegalMove(b, side) {
+        for (let y = 0; y < 10; y++) {
+          for (let x = 0; x < 9; x++) {
+            const p = pieceAt(b, x, y);
+            if (p && p.side === side && legalMovesFor(b, x, y).length) return true;
+          }
+        }
+        return false;
       }
-    }
-  }
 
-  setTimeout(() => {
-    if (mode === 'ai' && currentPlayer !== aiPlays) {
-      undoLocked = false;
-    }
-    currentPlayer = -currentPlayer;
-    nextTurn();
-  }, 600);
-}
+      function getPositionKey(b, turn) {
+        const rows = [];
+        for (let y = 0; y < 10; y++) {
+          let row = '';
+          for (let x = 0; x < 9; x++) {
+            const p = b[y][x];
+            row += p ? `${p.side[0]}${p.type[0]}` : '__';
+            row += '|';
+          }
+          rows.push(row);
+        }
+        return `${turn}#${rows.join('/')}`;
+      }
 
-function nextTurn(skipInfo = '') {
-  if (gameOver) {
-    isProcessingMove = false;
-    aiThinking = false;
-    setUIBusy(false);
-    updateStatus();
-    return;
-  }
+      function initPositionTracker() {
+        positionCounts = {};
+        positionCounts[getPositionKey(board, currentTurn)] = 1;
+      }
 
-  let notice = skipInfo;
-  if (!hasValidMoves(currentPlayer, board)) {
-    const skippedPlayer = currentPlayer === 1 ? '黑方' : '白方';
-    currentPlayer = -currentPlayer;
-    if (!hasValidMoves(currentPlayer, board)) {
-      isProcessingMove = false;
-      endGame();
-      return;
-    }
-    notice = `${skippedPlayer} 无子可下，已自动跳过`;
-  }
+      function increaseCurrentPositionCount() {
+        const key = getPositionKey(board, currentTurn);
+        positionCounts[key] = (positionCounts[key] || 0) + 1;
+        return positionCounts[key];
+      }
 
-  renderBoard();
-  highlightValidMoves();
-  isProcessingMove = false;
+      function isInsufficientMaterial(b) {
+        for (let y = 0; y < 10; y++) {
+          for (let x = 0; x < 9; x++) {
+            const p = b[y][x];
+            if (!p) continue;
+            if (['rook', 'horse', 'cannon', 'pawn'].includes(p.type)) return false;
+          }
+        }
+        return true;
+      }
 
-  if (mode === 'ai' && currentPlayer === aiPlays && !gameOver) {
-    aiMove(notice);
-    return;
-  }
+      function getDrawReason(repeatCount) {
+        if (repeatCount >= 3) {
+          return '同一局面（含行棋方）重复出现三次，判和。';
+        }
+        if (halfMoveClock >= 120) {
+          return '连续 120 步未发生吃子且没有兵卒移动，判和。';
+        }
+        if (isInsufficientMaterial(board)) {
+          return '双方均无足够攻杀子力，判和。';
+        }
+        return '';
+      }
 
-  updateStatus(notice);
-}
+      function handleCellClick(x, y) {
+        if (gameOver) {
+          showToast(gameResult === 'draw' ? '本局已和，请重新开局。' : '本局胜负已定，请重新开局。');
+          return;
+        }
 
-function endGame() {
-  gameOver = true;
+        const clicked = pieceAt(board, x, y);
+        if (!selected) {
+          if (!clicked) {
+            showToast(`请先选择${SIDE_TEXT[currentTurn]}棋子。`);
+            return;
+          }
+          if (clicked.side !== currentTurn) {
+            showToast(`当前轮到${SIDE_TEXT[currentTurn]}行棋。`);
+            return;
+          }
+          selectPiece(x, y);
+          return;
+        }
 
-  const { blackCount, whiteCount } = countPieces();
-  const status = document.querySelector('.status');
-  const boardEl = document.getElementById('board');
+        if (selected.x === x && selected.y === y) {
+          clearSelection();
+          renderAndPersist();
+          return;
+        }
 
-  aiThinking = false;
-  isProcessingMove = false;
-  setUIBusy(false);
-  undoBtn.disabled = true;
+        if (clicked && clicked.side === currentTurn) {
+          selectPiece(x, y);
+          return;
+        }
 
-  document.querySelectorAll('.cell').forEach(cell => cell.classList.remove('valid'));
+        const move = legalMoves.find((item) => item.x === x && item.y === y);
+        if (!move) {
+          showToast('该位置不能落子。');
+          return;
+        }
 
-  const scoresEl = document.getElementById('scores');
-  let blackClass = 'score black-score';
-  let whiteClass = 'score white-score';
-  let resultHtml = '';
+        performMove(selected, move);
+      }
 
-  if (blackCount === whiteCount) {
-    resultHtml = `<span class="winner">平局</span> 黑: ${blackCount} 白: ${whiteCount}`;
-  } else {
-    const winner = blackCount > whiteCount ? '黑方' : '白方';
-    const diff = Math.abs(blackCount - whiteCount);
-    if (blackCount > whiteCount) blackClass += ' highlight';
-    else whiteClass += ' highlight';
+      function selectPiece(x, y) {
+        selected = { x, y };
+        legalMoves = legalMovesFor(board, x, y);
+        const piece = pieceAt(board, x, y);
+        statusTextEl.textContent = `${SIDE_TEXT[piece.side]}已选中 ${PIECE_LABELS[piece.side][piece.type]}，可落子 ${legalMoves.length} 处。`;
+        renderAndPersist();
+      }
 
-    resultHtml =
-      `<span class="winner">${winner} 获胜！</span> ` +
-      `黑: ${blackCount} 白: ${whiteCount}` +
-      `<span class="winner-diff">领先 ${diff} 子</span>`;
-  }
-
-  scoresEl.innerHTML =
-    `<span class="${blackClass}">黑: ${blackCount}</span>` +
-    `<span class="${whiteClass}">白: ${whiteCount}</span>`;
-
-  status.innerHTML = resultHtml;
-  renderBoard();
-
-  boardEl.style.animation = 'shake 0.5s ease-in-out';
-  setTimeout(() => { boardEl.style.animation = ''; }, 500);
-}
-
-/** ====== 初始化与重置 ====== */
-function initBoard() {
-  cancelPendingAIActions();
-  board = Array.from({ length: BOARD_SIZE }, () => Array(BOARD_SIZE).fill(0));
-  board[3][3] = -1;
-  board[3][4] = 1;
-  board[4][3] = 1;
-  board[4][4] = -1;
-
-  currentPlayer = 1;
-  gameOver = false;
-  isProcessingMove = false;
-  aiThinking = false;
-  undoLocked = false;
-  history = [];
-  modeLocked = false;
-
-  refreshModeUIState();
-  renderBoard();
-  highlightValidMoves();
-  updateStatus();
-
-  if (mode === 'ai' && currentPlayer === aiPlays) {
-    aiMove();
-  }
-}
-
-function refreshPage() {
-  window.location.reload();
-}
-
-/** ====== 悔棋逻辑 ====== */
-function restoreHistoryAt(index) {
-  if (index < 0 || index >= history.length) return false;
-  const state = history[index];
-  history = history.slice(0, index);
-  restoreState(state);
-  return true;
-}
-
-function findLastHumanTurnHistoryIndex() {
-  for (let i = history.length - 1; i >= 0; i--) {
-    if (history[i].currentPlayer !== aiPlays) {
-      return i;
-    }
-  }
-  return -1;
-}
-
-function undoMove() {
-  if (gameOver || isProcessingMove || aiThinking) return;
-
-  if (mode === 'pvp') {
-    if (restoreHistoryAt(history.length - 1)) {
-      updateStatus('已悔棋一步');
-      highlightValidMoves();
-    }
-    return;
-  }
-
-  if (undoLocked) return;
-
-  const targetIndex = findLastHumanTurnHistoryIndex();
-  if (targetIndex === -1) return;
-
-  if (restoreHistoryAt(targetIndex)) {
-    undoLocked = true;
-    updateStatus('已回到你上一次落子前');
-    highlightValidMoves();
-  }
-}
-
-
-function destroyAIWorker() {
-  if (aiWorker) {
-    aiWorker.terminate();
-    aiWorker = null;
-  }
-  if (aiWorkerUrl) {
-    URL.revokeObjectURL(aiWorkerUrl);
-    aiWorkerUrl = null;
-  }
-}
-
-function ensureAIWorker() {
-  if (aiWorker) return aiWorker;
-  const workerSource = document.getElementById('aiWorkerScript').textContent;
-  aiWorkerUrl = URL.createObjectURL(new Blob([workerSource], { type: 'application/javascript' }));
-  aiWorker = new Worker(aiWorkerUrl);
-
-  aiWorker.addEventListener('message', handleAIWorkerMessage);
-  aiWorker.addEventListener('error', handleAIWorkerError);
-  return aiWorker;
-}
-
-function handleAIWorkerMessage(event) {
-  const data = event.data || {};
-  if (!data.type || data.requestId !== aiRequestId) return;
-
-  if (data.type === 'error') {
-    handleAIWorkerError(data.error || '未知错误');
-    return;
-  }
-
-  if (data.type !== 'result') return;
-  if (gameOver || mode !== 'ai' || currentPlayer !== aiPlays) return;
-
-  const move = data.result ? data.result.move : null;
-  if (!move) {
-    aiThinking = false;
-    currentPlayer = -currentPlayer;
-    nextTurn('AI 无子可下，已自动跳过');
-    return;
-  }
-
-  aiThinking = false;
-  makeMove(move.row, move.col, { force: true });
-}
-
-function handleAIWorkerError(error) {
-  console.error('AI worker error:', error);
-  destroyAIWorker();
-
-  if (gameOver || mode !== 'ai' || currentPlayer !== aiPlays) return;
-
-  aiThinking = false;
-  updateStatus('AI 计算模式不可用，已切回兼容模式');
-
-  requestAnimationFrame(() => {
-    const move = findBestMoveStrong(board, currentPlayer);
-    if (!move) {
-      currentPlayer = -currentPlayer;
-      nextTurn('AI 无子可下，已自动跳过');
-      return;
-    }
-    makeMove(move.row, move.col, { force: true });
-  });
-}
-
-window.addEventListener('beforeunload', destroyAIWorker);
-
-/** ====== AI 评估 ====== */
-function frontierCount(b, player) {
-  let count = 0;
-  for (let r = 0; r < BOARD_SIZE; r++) {
-    for (let c = 0; c < BOARD_SIZE; c++) {
-      if (b[r][c] !== player) continue;
-      for (const [dr, dc] of directions) {
-        const nr = r + dr;
-        const nc = c + dc;
-        if (inBounds(nr, nc) && b[nr][nc] === 0) {
-          count++;
-          break;
+      function clearSelection() {
+        selected = null;
+        legalMoves = [];
+        if (!gameOver) {
+          statusTextEl.textContent = `${SIDE_TEXT[currentTurn]}行棋。点按己方棋子选中，再点目标位置落子。`;
         }
       }
-    }
-  }
-  return count;
-}
 
-function potentialMobilityCount(b, player) {
-  let count = 0;
-  for (let r = 0; r < BOARD_SIZE; r++) {
-    for (let c = 0; c < BOARD_SIZE; c++) {
-      if (b[r][c] !== 0) continue;
-      for (const [dr, dc] of directions) {
-        const nr = r + dr;
-        const nc = c + dc;
-        if (inBounds(nr, nc) && b[nr][nc] === -player) {
-          count++;
-          break;
-        }
+      function finishWin(winSide, label, message, toastText) {
+        gameOver = true;
+        gameResult = 'win';
+        winner = winSide;
+        selected = null;
+        legalMoves = [];
+        topStatusEl.textContent = `${SIDE_TEXT[winSide]}胜利`;
+        stateTextEl.textContent = label;
+        stateBadgeEl.textContent = '胜';
+        statusTextEl.textContent = `${message} 本局已锁定结果，不能悔棋。`;
+        showToast(toastText);
       }
-    }
-  }
-  return count;
-}
 
-function countStableApprox(b, player) {
-  const stable = new Set();
+      function finishDraw(message) {
+        gameOver = true;
+        gameResult = 'draw';
+        winner = null;
+        selected = null;
+        legalMoves = [];
+        topStatusEl.textContent = '双方和棋';
+        stateTextEl.textContent = '和棋';
+        stateBadgeEl.textContent = '和';
+        statusTextEl.textContent = `${message} 本局已结束，不能悔棋。`;
+        showToast('本局和棋。');
+      }
 
-  function mark(r, c) {
-    stable.add(`${r},${c}`);
-  }
+      function setOngoingStatus() {
+        gameOver = false;
+        gameResult = null;
+        winner = null;
+        topStatusEl.textContent = `${SIDE_TEXT[currentTurn]}行棋`;
+        stateTextEl.textContent = moveHistory.length ? '进行中' : '开局';
+        stateBadgeEl.textContent = '局';
+        statusTextEl.textContent = `${SIDE_TEXT[currentTurn]}行棋。点按己方棋子选中，再点目标位置落子。`;
+      }
 
-  function scanFromCorner(cornerR, cornerC, stepR, stepC) {
-    if (b[cornerR][cornerC] !== player) return;
+      function performMove(from, to) {
+        const movingPiece = pieceAt(board, from.x, from.y);
+        const targetPiece = pieceAt(board, to.x, to.y);
 
-    mark(cornerR, cornerC);
+        history.push({
+          board: cloneBoard(board),
+          currentTurn,
+          moveHistory: moveHistory.map((item) => ({ ...item })),
+          lastMove: lastMove ? { from: { ...lastMove.from }, to: { ...lastMove.to } } : null,
+          gameOver,
+          gameResult,
+          winner,
+          halfMoveClock,
+          positionCounts: { ...positionCounts }
+        });
 
-    let r = cornerR + stepR;
-    let c = cornerC;
-    while (inBounds(r, c) && b[r][c] === player) {
-      mark(r, c);
-      r += stepR;
-    }
+        board = simulateMove(board, from, to);
+        lastMove = { from: { ...from }, to: { ...to } };
+        moveHistory.push({
+          no: moveHistory.length + 1,
+          text: formatMove(movingPiece, from, to, targetPiece)
+        });
 
-    r = cornerR;
-    c = cornerC + stepC;
-    while (inBounds(r, c) && b[r][c] === player) {
-      mark(r, c);
-      c += stepC;
-    }
-  }
+        halfMoveClock = (targetPiece || movingPiece.type === 'pawn') ? 0 : halfMoveClock + 1;
+        currentTurn = currentTurn === 'red' ? 'black' : 'red';
+        selected = null;
+        legalMoves = [];
 
-  scanFromCorner(0, 0, 1, 1);
-  scanFromCorner(0, 7, 1, -1);
-  scanFromCorner(7, 0, -1, 1);
-  scanFromCorner(7, 7, -1, -1);
+        const redGeneral = findGeneral(board, 'red');
+        const blackGeneral = findGeneral(board, 'black');
 
-  function markFullEdge(cells) {
-    const full = cells.every(([r, c]) => b[r][c] !== 0);
-    if (!full) return;
-    for (const [r, c] of cells) {
-      if (b[r][c] === player) mark(r, c);
-    }
-  }
+        if (!redGeneral || !blackGeneral) {
+          const winSide = redGeneral ? 'red' : 'black';
+          finishWin(winSide, '绝杀', `${SIDE_TEXT[winSide]}吃掉对方将帅，直接获胜。`, `${SIDE_TEXT[winSide]}绝杀，胜利！`);
+          renderAndPersist();
+          return;
+        }
 
-  markFullEdge(Array.from({ length: 8 }, (_, i) => [0, i]));
-  markFullEdge(Array.from({ length: 8 }, (_, i) => [7, i]));
-  markFullEdge(Array.from({ length: 8 }, (_, i) => [i, 0]));
-  markFullEdge(Array.from({ length: 8 }, (_, i) => [i, 7]));
+        const repeatCount = increaseCurrentPositionCount();
+        const sideToMove = currentTurn;
+        const inCheck = isInCheck(board, sideToMove);
+        const hasMove = hasAnyLegalMove(board, sideToMove);
 
-  return stable.size;
-}
-
-function dynamicPositionalScore(b, player) {
-  let score = 0;
-  for (let r = 0; r < BOARD_SIZE; r++) {
-    for (let c = 0; c < BOARD_SIZE; c++) {
-      const v = b[r][c];
-      if (v === 0) continue;
-
-      let w = PST[r][c];
-      const corner = getRelatedCorner(r, c);
-      if (corner) {
-        const cornerValue = b[corner[0]][corner[1]];
-        if (X_SQUARES[`${r},${c}`]) {
-          if (cornerValue === 0) w -= 80;
-          else if (cornerValue === v) w += 35;
+        if (!hasMove) {
+          const winSide = sideToMove === 'red' ? 'black' : 'red';
+          if (inCheck) {
+            finishWin(winSide, '绝杀', `${SIDE_TEXT[winSide]}完成绝杀，${SIDE_TEXT[sideToMove]}无合法应对。`, `${SIDE_TEXT[winSide]}绝杀，胜利！`);
+          } else {
+            finishWin(winSide, '困毙', `${SIDE_TEXT[winSide]}形成困毙，${SIDE_TEXT[sideToMove]}无合法着法，判负。`, `${SIDE_TEXT[winSide]}困毙获胜！`);
+          }
         } else {
-          if (cornerValue === 0) w -= 35;
-          else if (cornerValue === v) w += 20;
+          const drawReason = getDrawReason(repeatCount);
+          if (drawReason) {
+            finishDraw(drawReason);
+          } else if (inCheck) {
+            topStatusEl.textContent = `${SIDE_TEXT[sideToMove]}被将军`;
+            stateTextEl.textContent = '将军';
+            stateBadgeEl.textContent = '将';
+            statusTextEl.textContent = `${SIDE_TEXT[sideToMove]}正在被将军，请立即应将。`;
+            showToast(`${SIDE_TEXT[sideToMove]}被将军！`);
+          } else {
+            setOngoingStatus();
+          }
+        }
+
+        renderAndPersist();
+      }
+
+      function formatMove(piece, from, to, captured) {
+        const label = PIECE_LABELS[piece.side][piece.type];
+        const fromText = `(${from.x + 1},${10 - from.y})`;
+        const toText = `(${to.x + 1},${10 - to.y})`;
+        const captureText = captured ? `，吃${PIECE_LABELS[captured.side][captured.type]}` : '';
+        return `${SIDE_TEXT[piece.side]} ${label} ${fromText} → ${toText}${captureText}`;
+      }
+
+      function undoMove() {
+        if (gameOver) {
+          showToast(gameResult === 'draw' ? '和棋后不能悔棋，请重新开局。' : '胜负已定后不能悔棋，请重新开局。');
+          return;
+        }
+        if (!history.length) {
+          showToast('当前没有可悔的着法。');
+          return;
+        }
+
+        const prev = history.pop();
+        board = cloneBoard(prev.board);
+        currentTurn = prev.currentTurn;
+        selected = null;
+        legalMoves = [];
+        moveHistory = prev.moveHistory.map((item) => ({ ...item }));
+        lastMove = prev.lastMove ? { from: { ...prev.lastMove.from }, to: { ...prev.lastMove.to } } : null;
+        gameOver = prev.gameOver;
+        gameResult = prev.gameResult;
+        winner = prev.winner;
+        halfMoveClock = prev.halfMoveClock;
+        positionCounts = { ...prev.positionCounts };
+
+        topStatusEl.textContent = moveHistory.length ? `${SIDE_TEXT[currentTurn]}行棋` : '红方先行';
+        stateTextEl.textContent = moveHistory.length ? '进行中' : '开局';
+        stateBadgeEl.textContent = '局';
+        statusTextEl.textContent = `${SIDE_TEXT[currentTurn]}行棋。点按己方棋子选中，再点目标位置落子。`;
+        showToast('已悔棋一步。');
+        renderAndPersist();
+      }
+
+      function resetGame() {
+        board = createInitialBoard();
+        currentTurn = 'red';
+        selected = null;
+        legalMoves = [];
+        history = [];
+        moveHistory = [];
+        lastMove = null;
+        gameOver = false;
+        gameResult = null;
+        winner = null;
+        halfMoveClock = 0;
+        initPositionTracker();
+        topStatusEl.textContent = '红方先行';
+        stateTextEl.textContent = '开局';
+        stateBadgeEl.textContent = '局';
+        statusTextEl.textContent = '点按己方棋子选中，再点目标位置落子。';
+        showToast('棋局已重置。');
+        renderAndPersist();
+      }
+
+      function updateControlStates() {
+        undoBtn.disabled = gameOver || history.length === 0;
+        resetBtn.disabled = false;
+        turnIndicatorEl.style.boxShadow = gameOver
+          ? '0 10px 22px rgba(123, 79, 41, 0.06)'
+          : '0 10px 22px rgba(123, 79, 41, 0.1)';
+      }
+
+      function showToast(text) {
+        toastEl.textContent = text;
+        toastEl.classList.add('show');
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => toastEl.classList.remove('show'), 1800);
+      }
+
+      function render() {
+        renderBoard();
+        renderTurnState();
+        renderMoves();
+        updateControlStates();
+      }
+
+      function renderBoard() {
+        const legalKeySet = new Set(legalMoves.map((move) => `${move.x},${move.y}`));
+        boardEl.innerHTML = '';
+        for (let y = 0; y < 10; y++) {
+          for (let x = 0; x < 9; x++) {
+            const piece = pieceAt(board, x, y);
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'cell';
+            btn.dataset.x = String(x);
+            btn.dataset.y = String(y);
+            btn.setAttribute('role', 'gridcell');
+            btn.setAttribute('aria-label', describeCell(x, y, piece));
+
+            if (selected && selected.x === x && selected.y === y) btn.classList.add('selected');
+            if (lastMove && lastMove.from.x === x && lastMove.from.y === y) btn.classList.add('last-from');
+            if (lastMove && lastMove.to.x === x && lastMove.to.y === y) btn.classList.add('last-to');
+            if (legalKeySet.has(`${x},${y}`)) {
+              btn.classList.add('legal');
+              btn.classList.add(piece ? 'occupied' : 'empty');
+            }
+
+            if (piece) {
+              const span = document.createElement('span');
+              span.className = `piece ${piece.side}`;
+              span.textContent = PIECE_LABELS[piece.side][piece.type];
+              span.setAttribute('aria-hidden', 'true');
+              btn.appendChild(span);
+            } else {
+              const sr = document.createElement('span');
+              sr.className = 'sr-only';
+              sr.textContent = '空位';
+              btn.appendChild(sr);
+            }
+            boardEl.appendChild(btn);
+          }
         }
       }
 
-      score += v === player ? w : -w;
-    }
-  }
-  return score;
-}
-
-function evaluate(b, player) {
-  const { blackCount, whiteCount } = countPieces(b);
-  const myDiscs = player === 1 ? blackCount : whiteCount;
-  const oppDiscs = player === 1 ? whiteCount : blackCount;
-  const empties = 64 - myDiscs - oppDiscs;
-
-  const myMoves = listValidMoves(player, b).length;
-  const oppMoves = listValidMoves(-player, b).length;
-  if (myMoves === 0 && oppMoves === 0) {
-    return finalDiscDiff(b, player) * 100000;
-  }
-
-  let myCorners = 0;
-  let oppCorners = 0;
-  for (const [r, c] of CORNERS) {
-    if (b[r][c] === player) myCorners++;
-    else if (b[r][c] === -player) oppCorners++;
-  }
-
-  let myCornerAdj = 0;
-  let oppCornerAdj = 0;
-  for (const key of Object.keys(X_SQUARES)) {
-    const [r, c] = key.split(',').map(Number);
-    const [cr, cc] = X_SQUARES[key];
-    if (b[cr][cc] !== 0) continue;
-    if (b[r][c] === player) myCornerAdj++;
-    else if (b[r][c] === -player) oppCornerAdj++;
-  }
-  for (const key of Object.keys(C_SQUARES)) {
-    const [r, c] = key.split(',').map(Number);
-    const [cr, cc] = C_SQUARES[key];
-    if (b[cr][cc] !== 0) continue;
-    if (b[r][c] === player) myCornerAdj++;
-    else if (b[r][c] === -player) oppCornerAdj++;
-  }
-
-  const myFrontier = frontierCount(b, player);
-  const oppFrontier = frontierCount(b, -player);
-  const myPotential = potentialMobilityCount(b, player);
-  const oppPotential = potentialMobilityCount(b, -player);
-  const myStable = countStableApprox(b, player);
-  const oppStable = countStableApprox(b, -player);
-  const positional = dynamicPositionalScore(b, player);
-
-  const discParity = normalizeDiff(myDiscs, oppDiscs);
-  const mobility = normalizeDiff(myMoves, oppMoves);
-  const potentialMobility = normalizeDiff(myPotential, oppPotential);
-  const frontierAdv = normalizeDiff(oppFrontier, myFrontier); // 自己前沿子越少越好
-  const stableDiff = myStable - oppStable;
-  const cornerDiff = myCorners - oppCorners;
-  const cornerAdjDiff = oppCornerAdj - myCornerAdj; // 靠近空角越少越好
-  const parity = empties % 2 === 1 ? 6 : -6;
-
-  if (empties > 44) {
-    return (
-      650 * cornerDiff +
-      40 * cornerAdjDiff +
-      22 * stableDiff +
-      12 * mobility +
-      8 * potentialMobility +
-      7 * frontierAdv +
-      2 * discParity +
-      1.6 * positional
-    );
-  }
-
-  if (empties > 20) {
-    return (
-      780 * cornerDiff +
-      45 * cornerAdjDiff +
-      28 * stableDiff +
-      13 * mobility +
-      7 * potentialMobility +
-      8 * frontierAdv +
-      6 * discParity +
-      1.35 * positional +
-      parity
-    );
-  }
-
-  return (
-    900 * cornerDiff +
-    55 * cornerAdjDiff +
-    36 * stableDiff +
-    10 * mobility +
-    4 * potentialMobility +
-    4 * frontierAdv +
-    18 * discParity +
-    1.05 * positional +
-    2 * parity
-  );
-}
-
-/** ====== AI 搜索 ====== */
-function storeTT(tt, key, depth, value, bestMove, flag) {
-  if (tt.size > MAX_TT_SIZE) tt.clear();
-  tt.set(key, {
-    depth,
-    value,
-    best: cloneMove(bestMove),
-    flag
-  });
-}
-
-function storeKiller(killers, ply, move) {
-  if (!killers[ply]) killers[ply] = [null, null];
-  if (sameMove(killers[ply][0], move)) return;
-  killers[ply][1] = killers[ply][0];
-  killers[ply][0] = cloneMove(move);
-}
-
-function addHistory(historyTable, move, depth) {
-  historyTable[move.row][move.col] += depth * depth;
-  if (historyTable[move.row][move.col] > 1000000) {
-    for (let r = 0; r < BOARD_SIZE; r++) {
-      for (let c = 0; c < BOARD_SIZE; c++) {
-        historyTable[r][c] = Math.floor(historyTable[r][c] / 2);
+      function describeCell(x, y, piece) {
+        if (!piece) return `第 ${x + 1} 列，第 ${y + 1} 行，空位`;
+        return `第 ${x + 1} 列，第 ${y + 1} 行，${SIDE_TEXT[piece.side]}${TYPE_SHORT[piece.type]}`;
       }
-    }
-  }
-}
 
-function scoreMoveForOrdering(b, move, player, options = {}) {
-  const { ttMove = null, killers = null, historyTable = null, ply = 0, exact = false } = options;
-  let score = 0;
+      function renderTurnState() {
+        if (gameOver && winner) {
+          turnBadgeEl.textContent = PIECE_LABELS[winner].general;
+          turnBadgeEl.className = `badge-piece ${winner}`;
+          turnTextEl.textContent = `${SIDE_TEXT[winner]}胜利`;
+        } else if (gameOver && gameResult === 'draw') {
+          turnBadgeEl.textContent = '和';
+          turnBadgeEl.className = 'badge-piece';
+          turnTextEl.textContent = '本局和棋';
+        } else {
+          turnBadgeEl.textContent = PIECE_LABELS[currentTurn].general;
+          turnBadgeEl.className = `badge-piece ${currentTurn}`;
+          turnTextEl.textContent = `${SIDE_TEXT[currentTurn]}行棋`;
+        }
 
-  if (sameMove(move, ttMove)) score += 10000000;
-  if (killers && killers[ply]) {
-    if (sameMove(move, killers[ply][0])) score += 5000000;
-    else if (sameMove(move, killers[ply][1])) score += 4000000;
-  }
-
-  if (isCornerCell(move.row, move.col)) score += 2000000;
-  if (isEdgeCell(move.row, move.col)) score += 60000;
-  if (isRiskyXSquare(move.row, move.col, b)) score -= 700000;
-  if (isRiskyCSquare(move.row, move.col, b)) score -= 250000;
-
-  score += PST[move.row][move.col] * 800;
-  score += move.flips.length * 120;
-  if (historyTable) score += historyTable[move.row][move.col];
-
-  const nb = applyMoveOn(b, move, player);
-  const oppMoves = listValidMoves(-player, nb).length;
-  const myMoves = listValidMoves(player, nb).length;
-  score -= oppMoves * (exact ? 260 : 180);
-  score += myMoves * 25;
-
-  if (countEmpties(b) <= 18) {
-    const stableBonus = countStableApprox(nb, player) - countStableApprox(nb, -player);
-    score += stableBonus * 160;
-  }
-
-  return score;
-}
-
-function orderMovesAdvanced(b, moves, player, options = {}) {
-  return moves
-    .map(move => ({ move, score: scoreMoveForOrdering(b, move, player, options) }))
-    .sort((a, bItem) => bItem.score - a.score)
-    .map(item => item.move);
-}
-
-function exactSearch(b, player, alpha, beta, tt) {
-  const key = boardKey(b, player);
-  const entry = tt.get(key);
-  const alphaOrig = alpha;
-  const betaOrig = beta;
-
-  if (entry) {
-    if (entry.flag === 'EXACT') return { value: entry.value, move: entry.best };
-    if (entry.flag === 'LOWER') alpha = Math.max(alpha, entry.value);
-    else if (entry.flag === 'UPPER') beta = Math.min(beta, entry.value);
-    if (alpha >= beta) return { value: entry.value, move: entry.best };
-  }
-
-  const myMoves = listValidMoves(player, b);
-  if (myMoves.length === 0) {
-    const oppMoves = listValidMoves(-player, b);
-    if (oppMoves.length === 0) {
-      const terminal = finalDiscDiff(b, player);
-      return { value: terminal, move: null };
-    }
-    const passResult = exactSearch(b, -player, -beta, -alpha, tt);
-    return { value: -passResult.value, move: null };
-  }
-
-  let bestMove = null;
-  let bestVal = -Infinity;
-  const ttMove = entry ? entry.best : null;
-  const ordered = orderMovesAdvanced(b, myMoves, player, { ttMove, exact: true });
-
-  for (const move of ordered) {
-    const nb = applyMoveOn(b, move, player);
-    const result = exactSearch(nb, -player, -beta, -alpha, tt);
-    const value = -result.value;
-
-    if (value > bestVal) {
-      bestVal = value;
-      bestMove = move;
-    }
-
-    if (value > alpha) alpha = value;
-    if (alpha >= beta) break;
-  }
-
-  let flag = 'EXACT';
-  if (bestVal <= alphaOrig) flag = 'UPPER';
-  else if (bestVal >= betaOrig) flag = 'LOWER';
-  storeTT(tt, key, Infinity, bestVal, bestMove, flag);
-
-  return { value: bestVal, move: bestMove };
-}
-
-function negamaxSearch(b, player, depth, alpha, beta, deadline, tt, killers, historyTable, ply = 0) {
-  if (Date.now() >= deadline) {
-    return { timeout: true, value: 0, move: null };
-  }
-
-  const key = boardKey(b, player);
-  const entry = tt.get(key);
-  const alphaOrig = alpha;
-  const betaOrig = beta;
-
-  if (entry && entry.depth >= depth) {
-    if (entry.flag === 'EXACT') return { timeout: false, value: entry.value, move: entry.best };
-    if (entry.flag === 'LOWER') alpha = Math.max(alpha, entry.value);
-    else if (entry.flag === 'UPPER') beta = Math.min(beta, entry.value);
-    if (alpha >= beta) return { timeout: false, value: entry.value, move: entry.best };
-  }
-
-  const myMoves = listValidMoves(player, b);
-  if (myMoves.length === 0) {
-    const oppMoves = listValidMoves(-player, b);
-    if (oppMoves.length === 0) {
-      return { timeout: false, value: finalDiscDiff(b, player) * 100000, move: null };
-    }
-    const passResult = negamaxSearch(b, -player, depth, -beta, -alpha, deadline, tt, killers, historyTable, ply + 1);
-    if (passResult.timeout) return passResult;
-    return { timeout: false, value: -passResult.value, move: null };
-  }
-
-  if (depth <= 0) {
-    return { timeout: false, value: evaluate(b, player), move: null };
-  }
-
-  let bestMove = null;
-  let bestVal = -Infinity;
-  const ttMove = entry ? entry.best : null;
-  const ordered = orderMovesAdvanced(b, myMoves, player, { ttMove, killers, historyTable, ply });
-
-  let firstChild = true;
-  for (const move of ordered) {
-    const nb = applyMoveOn(b, move, player);
-    let childResult;
-    let value;
-
-    if (firstChild) {
-      childResult = negamaxSearch(nb, -player, depth - 1, -beta, -alpha, deadline, tt, killers, historyTable, ply + 1);
-      if (childResult.timeout) return childResult;
-      value = -childResult.value;
-      firstChild = false;
-    } else {
-      childResult = negamaxSearch(nb, -player, depth - 1, -alpha - 1, -alpha, deadline, tt, killers, historyTable, ply + 1);
-      if (childResult.timeout) return childResult;
-      value = -childResult.value;
-
-      if (value > alpha && value < beta) {
-        childResult = negamaxSearch(nb, -player, depth - 1, -beta, -value, deadline, tt, killers, historyTable, ply + 1);
-        if (childResult.timeout) return childResult;
-        value = -childResult.value;
+        if (!moveHistory.length && !gameOver) {
+          topStatusEl.textContent = '红方先行';
+        }
       }
-    }
 
-    if (value > bestVal) {
-      bestVal = value;
-      bestMove = move;
-    }
+      function renderMoves() {
+        if (!moveHistory.length) {
+          moveListEl.innerHTML = '<p class="move-empty">尚未落子。</p>';
+          return;
+        }
+        moveListEl.innerHTML = moveHistory.map((move) =>
+          `<div class="move-item"><div class="move-no">${move.no}.</div><div>${escapeHtml(move.text)}</div></div>`
+        ).join('');
+        moveListEl.scrollTop = moveListEl.scrollHeight;
+      }
 
-    if (value > alpha) alpha = value;
-    if (alpha >= beta) {
-      storeKiller(killers, ply, move);
-      addHistory(historyTable, move, depth);
-      break;
-    }
-  }
-
-  let flag = 'EXACT';
-  if (bestVal <= alphaOrig) flag = 'UPPER';
-  else if (bestVal >= betaOrig) flag = 'LOWER';
-  storeTT(tt, key, depth, bestVal, bestMove, flag);
-
-  return { timeout: false, value: bestVal, move: bestMove };
-}
-
-function shouldUseExactSolver(b, player) {
-  const empties = countEmpties(b);
-  if (empties <= EXACT_SOLVE_EMPTY_LIMIT) return true;
-  if (empties <= EXTENDED_SOLVE_EMPTY_LIMIT) {
-    return listValidMoves(player, b).length <= 6;
-  }
-  return false;
-}
-
-function getAdaptiveThinkBudget(b, player) {
-  const empties = countEmpties(b);
-  const moveCount = listValidMoves(player, b).length;
-
-  if (empties >= 50) return 160;
-  if (empties >= 42) return 240;
-  if (empties >= 32) return 340;
-  if (empties >= 24) return 500;
-  if (empties >= 18) return moveCount <= 5 ? 720 : 620;
-  if (empties >= 14) return moveCount <= 5 ? 980 : 820;
-  return 1100;
-}
-
-function getAdaptiveMaxDepth(empties) {
-  if (empties >= 50) return 5;
-  if (empties >= 40) return 6;
-  if (empties >= 28) return 7;
-  if (empties >= 20) return 9;
-  if (empties >= 16) return 11;
-  return MAX_ITER_DEPTH;
-}
-
-function findBestMoveIterative(b, player, msBudget) {
-  const deadline = Date.now() + msBudget;
-  const tt = new Map();
-  const killers = Array.from({ length: 80 }, () => [null, null]);
-  const historyTable = Array.from({ length: BOARD_SIZE }, () => Array(BOARD_SIZE).fill(0));
-  const empties = countEmpties(b);
-  const maxDepth = getAdaptiveMaxDepth(empties);
-
-  let bestMove = null;
-  let bestValue = 0;
-
-  for (let depth = 1; depth <= maxDepth; depth++) {
-    if (Date.now() >= deadline) break;
-
-    let alpha = -Infinity;
-    let beta = Infinity;
-    if (depth >= 3) {
-      const window = 45 + depth * 8;
-      alpha = bestValue - window;
-      beta = bestValue + window;
-    }
-
-    let result = negamaxSearch(b, player, depth, alpha, beta, deadline, tt, killers, historyTable, 0);
-    if (result.timeout) break;
-
-    if (depth >= 3 && (result.value <= alpha || result.value >= beta)) {
-      result = negamaxSearch(b, player, depth, -Infinity, Infinity, deadline, tt, killers, historyTable, 0);
-      if (result.timeout) break;
-    }
-
-    if (result.move) {
-      bestMove = result.move;
-      bestValue = result.value;
-    }
-
-    if (Math.abs(bestValue) >= 9000000) break;
-  }
-
-  if (!bestMove) {
-    const moves = listValidMoves(player, b);
-    if (moves.length > 0) {
-      bestMove = orderMovesAdvanced(b, moves, player)[0];
-    }
-  }
-
-  return bestMove;
-}
-
-function findBestMoveStrong(b, player) {
-  if (shouldUseExactSolver(b, player)) {
-    const exactTT = new Map();
-    const result = exactSearch(b, player, -Infinity, Infinity, exactTT);
-    if (result.move) return result.move;
-  }
-
-  const budget = getAdaptiveThinkBudget(b, player);
-  return findBestMoveIterative(b, player, budget);
-}
-
-function aiMove(extraText = '') {
-  aiThinking = true;
-  setUIBusy(true);
-  updateStatus(extraText);
-
-  let worker;
-  try {
-    worker = ensureAIWorker();
-  } catch (error) {
-    handleAIWorkerError(error);
-    return;
-  }
-
-  const requestId = ++aiRequestId;
-  worker.postMessage({
-    type: 'think',
-    requestId,
-    board: deepCopyBoard(board),
-    player: currentPlayer,
-    targetMs: AI_TARGET_THINK_MS
-  });
-}
-
-/** ====== 事件绑定 ====== */
-undoBtn.addEventListener('click', undoMove);
-resetBtn.addEventListener('click', refreshPage);
-
-modeButtons.forEach(btn => {
-  btn.addEventListener('click', () => {
-    if (isProcessingMove || aiThinking || modeLocked) return;
-    mode = btn.dataset.mode;
-
-    modeButtons.forEach(b => b.classList.toggle('active', b === btn));
-    refreshModeUIState();
-    initBoard();
-  });
-});
-
-aiSideButtons.forEach(btn => {
-  btn.addEventListener('click', () => {
-    if (isProcessingMove || aiThinking || modeLocked || mode !== 'ai') return;
-    aiPlays = parseInt(btn.dataset.side, 10);
-
-    aiSideButtons.forEach(b => b.classList.toggle('active', b === btn));
-    refreshModeUIState();
-    initBoard();
-  });
-});
-
-initBoard();
-</script>
+      function escapeHtml(text) {
+        return text
+          .replaceAll('&', '&amp;')
+          .replaceAll('<', '&lt;')
+          .replaceAll('>', '&gt;')
+          .replaceAll('"', '&quot;')
+          .replaceAll("'", '&#39;');
+      }
+    })();
+  </script>
 <script defer src="https://static.cloudflareinsights.com/beacon.min.js/v8c78df7c7c0f484497ecbca7046644da1771523124516" integrity="sha512-8DS7rgIrAmghBFwoOTujcf6D9rXvH8xm8JQ1Ja01h9QX8EzXldiszufYa4IFfKdLUKTTrnSFXLDkUEOTrZQ8Qg==" data-cf-beacon='{"version":"2024.11.0","token":"7939e04a4baf43c8b86a560f74aac60e","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
-<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v8c78df7c7c0f484497ecbca7046644da1771523124516" integrity="sha512-8DS7rgIrAmghBFwoOTujcf6D9rXvH8xm8JQ1Ja01h9QX8EzXldiszufYa4IFfKdLUKTTrnSFXLDkUEOTrZQ8Qg==" data-cf-beacon='{"version":"2024.11.0","token":"7939e04a4baf43c8b86a560f74aac60e","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
-<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v8c78df7c7c0f484497ecbca7046644da1771523124516" integrity="sha512-8DS7rgIrAmghBFwoOTujcf6D9rXvH8xm8JQ1Ja01h9QX8EzXldiszufYa4IFfKdLUKTTrnSFXLDkUEOTrZQ8Qg==" data-cf-beacon='{"version":"2024.11.0","token":"7939e04a4baf43c8b86a560f74aac60e","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
-<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v8c78df7c7c0f484497ecbca7046644da1771523124516" integrity="sha512-8DS7rgIrAmghBFwoOTujcf6D9rXvH8xm8JQ1Ja01h9QX8EzXldiszufYa4IFfKdLUKTTrnSFXLDkUEOTrZQ8Qg==" data-cf-beacon='{"version":"2024.11.0","token":"714420ba517c46f1a8fc9efa6e860813","r":1,"server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
 </body>
 </html>
